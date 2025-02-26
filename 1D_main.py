@@ -11,9 +11,9 @@ import matplotlib.animation as animation
 # %%
 # parameters
 # settings parameters
-M = 800  # number of space samples
-FREQ_REF = 1e9  # Hz
-Q = 80000  # number of time samples
+M = 202  # number of space samples
+FREQ_REF = 1e8  # Hz
+Q = 800  # number of time samples
 
 
 # Constants
@@ -24,7 +24,7 @@ c = 1 / np.sqrt(e0 * u0)  # m/s
 # %%
 # derived parameters
 DELTA_X = c / (FREQ_REF * 20)
-DELTA_T = 1 / (2 * FREQ_REF * 20) /10
+DELTA_T = 1 / (2 * FREQ_REF * 20)
 
 TOTAL_X = (M - 1) * DELTA_X
 TOTAL_T = (Q - 1) * DELTA_T
@@ -44,9 +44,10 @@ J = np.zeros((Q, M))
 # ) / np.sqrt(2 * np.pi)
 
 # set a sinusoidal current at the middle of the grid
-J[:int(Q/2), int(M / 2)] = (
-    1 / 10 * np.sin(2 * np.pi * FREQ_REF / 10 * np.linspace(0, TOTAL_T/2, int(Q/2)))
+J[: int(Q), round(M / 2)] = (
+    1 / 10 * np.sin(2 * np.pi * FREQ_REF / 4 * np.linspace(0, TOTAL_T / 2, int(Q)))
 )
+
 
 # initialise the arrays
 E = np.zeros((Q, M))
@@ -110,18 +111,22 @@ axis = plt.axes(xlim=(0, TOTAL_X), ylim=(-0.5, 0.5))
 x = np.linspace(0, TOTAL_X, M)
 (line,) = plt.plot(x, E[0], label="0 s")
 plt.legend()
+plt.ylim(np.min(E, axis=None), np.max(E, axis=None))
 
-frame_devider = 20
+frame_devider = 3
+
 
 def updatefig(i):
-    line.set_ydata(E[i*frame_devider])
-    line.set_label(f"{i*frame_devider * DELTA_T:.2e} s")
+    line.set_ydata(E[i * frame_devider])
+    line.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
     plt.legend()
     return (line,)
 
 
-ani = animation.FuncAnimation(fig, updatefig, frames=int(Q/frame_devider), repeat=True, interval=1)
-# ani.save("1D gaussian propagation.mp4", fps=30)
+ani = animation.FuncAnimation(
+    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
+)
+# ani.save(, fps=30)
 
 plt.show()
 # %%
