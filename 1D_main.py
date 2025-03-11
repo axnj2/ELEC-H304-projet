@@ -1,4 +1,3 @@
-# %%
 # FDTD - Finite-Difference Time-Domain
 # 1D simulation using Yee's algorithm
 # to simulate electromagnetic waves.
@@ -8,26 +7,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-# %%
+
 # parameters
 # settings parameters
-M = 200  # number of space samples
+M = 400  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 500  # number of time samples
+Q = 2000  # number of time samples
 
 
 # Constants
 e0 = 8.8541878188e-12  # F/m
 u0 = 1.25663706127e-6  # H/m
-c = 1 / np.sqrt(e0 * u0)  # m/s
+c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
-# %%
+# set the local relative permittivity array
+epsilon_r = np.ones((M))
+epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+
 # derived parameters
-DELTA_X = c / (FREQ_REF * 20)       # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 20)   # in seconds
+DELTA_X = c_vide / (FREQ_REF * 40)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
 
-TOTAL_X = (M - 1) * DELTA_X # in meters
-TOTAL_T = (Q - 1) * DELTA_T # in seconds
+TOTAL_X = (M - 1) * DELTA_X  # in meters
+TOTAL_T = (Q - 1) * DELTA_T  # in seconds
 print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
@@ -44,9 +46,18 @@ J = np.zeros((Q, M))
 # ) / np.sqrt(2 * np.pi)
 
 # set a sinusoidal current at the middle of the grid
-J[: int(Q), round(M / 2)] = (
-    1 / 10 * np.sin(2 * np.pi * FREQ_REF * np.linspace(0, TOTAL_T / 2, int(Q)))
+fraction_on = 0.2
+J[0 : int(Q * fraction_on), round(M / 2)] = (
+    1
+    / 10
+    * np.sin(
+        2
+        * np.pi
+        * FREQ_REF
+        * np.linspace(0, TOTAL_T * fraction_on, int(Q * fraction_on))
+    )
 )
+
 
 
 # initialise the arrays
@@ -68,10 +79,10 @@ def forward_E(E: np.array, B_tilde: np.array, J: np.array, q: int):
     """
     E[q, 1 : M - 1] = (
         E[q - 1, 1 : M - 1]
-        + (1 / (e0 * u0))
-        * (DELTA_T / (c * DELTA_X))
+        + (1 / (epsilon_r[1 : M - 1] * e0 * u0))
+        * (DELTA_T / ((1 / np.sqrt(epsilon_r[1 : M - 1] * e0 * u0)) * DELTA_X))
         * (B_tilde[q - 1, 1 : M - 1] - B_tilde[q - 1, 0 : M - 2])
-        + (DELTA_T / e0) * J[q, 1 : M - 1]
+        + (DELTA_T / (epsilon_r[1 : M - 1] * e0)) * J[q, 1 : M - 1]
     )
 
     # limit conditions :
@@ -86,9 +97,9 @@ def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
     """
     # limit conditions :
 
-    B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + ((c * DELTA_T) / DELTA_X) * (
-        E[q, 1:M] - E[q, 0 : M - 1]
-    )
+    B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + (
+        ((1 / np.sqrt(epsilon_r[0 : M - 1] * e0 * u0)) * DELTA_T) / DELTA_X
+    ) * (E[q, 1:M] - E[q, 0 : M - 1])
 
     # limit conditions :
     B_tilde[q, M - 1] = B_tilde[q - 2, M - 2]
@@ -107,19 +118,27 @@ main()
 
 # %%
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
-fig = plt.figure()
-axis = plt.axes(xlim=(0, TOTAL_X), ylim=(-0.5, 0.5))
+fig, ax1 = plt.subplots()
+ax1.set_xlim(0, TOTAL_X)
 
 x = np.linspace(0, TOTAL_X, M)
-plt.xlabel("x (m)")
-plt.ylabel("E (V/m)")
-plt.title("1D FDTD simulation")
-(line,) = plt.plot(x, E[0], label="0 s")
+ax1.set_xlabel("x (m)")
+ax1.set_ylabel("E (V/m)")
+ax1.set_title("1D FDTD simulation")
+ax1.tick_params(axis="y", labelcolor="b")
+(line,) = plt.plot(x, E[0], label="0 s", color="b")
 plt.legend()
 plt.ylim(
     np.min(E, axis=None),
     np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
 )
+
+# show the relative permittivity on the plot
+# https://matplotlib.org/stable/gallery/subplots_axes_and_figures/two_scales.html
+ax2 = ax1.twinx()
+ax2.plot(x, epsilon_r, "r")
+ax2.set_ylabel("permitivité relative", color="r")
+ax2.tick_params(axis="y", labelcolor="r")
 
 frame_devider = 1
 
@@ -137,4 +156,4 @@ ani = animation.FuncAnimation(
 # ani.save(, fps=30)
 
 plt.show()
-ani.save("1D_sine_source.mp4", fps=60)
+# ani.save("1D_sine_source_local_permittivity.mp4", fps=60)
