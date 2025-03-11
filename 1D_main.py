@@ -11,9 +11,9 @@ import matplotlib.animation as animation
 # %%
 # parameters
 # settings parameters
-M = 202  # number of space samples
+M = 200  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 800  # number of time samples
+Q = 500  # number of time samples
 
 
 # Constants
@@ -23,11 +23,11 @@ c = 1 / np.sqrt(e0 * u0)  # m/s
 
 # %%
 # derived parameters
-DELTA_X = c / (FREQ_REF * 20)
-DELTA_T = 1 / (2 * FREQ_REF * 20)
+DELTA_X = c / (FREQ_REF * 20)       # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)   # in seconds
 
-TOTAL_X = (M - 1) * DELTA_X
-TOTAL_T = (Q - 1) * DELTA_T
+TOTAL_X = (M - 1) * DELTA_X # in meters
+TOTAL_T = (Q - 1) * DELTA_T # in seconds
 print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
@@ -45,7 +45,7 @@ J = np.zeros((Q, M))
 
 # set a sinusoidal current at the middle of the grid
 J[: int(Q), round(M / 2)] = (
-    1 / 10 * np.sin(2 * np.pi * FREQ_REF / 4 * np.linspace(0, TOTAL_T / 2, int(Q)))
+    1 / 10 * np.sin(2 * np.pi * FREQ_REF * np.linspace(0, TOTAL_T / 2, int(Q)))
 )
 
 
@@ -53,7 +53,7 @@ J[: int(Q), round(M / 2)] = (
 E = np.zeros((Q, M))
 E[0, :] = E0[:]
 B_tilde = np.zeros((Q, M))
-B_tilde[0, :] = B_tilde_0
+B_tilde[0, :] = B_tilde_0[:]
 
 
 # %%
@@ -66,9 +66,6 @@ def forward_E(E: np.array, B_tilde: np.array, J: np.array, q: int):
     modifies E in place at step q
     q : int : has to be between 1 and Q-1
     """
-    # limit conditions :
-    # E[0] = E[M-1] = 0 (as they already are from the initialisation)
-
     E[q, 1 : M - 1] = (
         E[q - 1, 1 : M - 1]
         + (1 / (e0 * u0))
@@ -77,7 +74,9 @@ def forward_E(E: np.array, B_tilde: np.array, J: np.array, q: int):
         + (DELTA_T / e0) * J[q, 1 : M - 1]
     )
 
-    # TODO add the current density term
+    # limit conditions :
+    E[q, 0] = E[q - 2, 1]
+    E[q, M - 1] = E[q - 2, M - 2]
 
 
 def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
@@ -86,11 +85,14 @@ def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
     q : int : the time step : has to be between 1 and Q-1
     """
     # limit conditions :
-    # B_tilde[0] = B_tilde[M-1] = 0 (as they already are from the initialisation)
 
     B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + ((c * DELTA_T) / DELTA_X) * (
         E[q, 1:M] - E[q, 0 : M - 1]
     )
+
+    # limit conditions :
+    B_tilde[q, M - 1] = B_tilde[q - 2, M - 2]
+    B_tilde[q, 0] = B_tilde[q - 2, 1]
 
 
 def main():
@@ -109,11 +111,17 @@ fig = plt.figure()
 axis = plt.axes(xlim=(0, TOTAL_X), ylim=(-0.5, 0.5))
 
 x = np.linspace(0, TOTAL_X, M)
+plt.xlabel("x (m)")
+plt.ylabel("E (V/m)")
+plt.title("1D FDTD simulation")
 (line,) = plt.plot(x, E[0], label="0 s")
 plt.legend()
-plt.ylim(np.min(E, axis=None), np.max(E, axis=None))
+plt.ylim(
+    np.min(E, axis=None),
+    np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
+)
 
-frame_devider = 3
+frame_devider = 1
 
 
 def updatefig(i):
@@ -129,4 +137,4 @@ ani = animation.FuncAnimation(
 # ani.save(, fps=30)
 
 plt.show()
-# %%
+ani.save("1D_sine_source.mp4", fps=60)
