@@ -12,7 +12,7 @@ import matplotlib.animation as animation
 # settings parameters
 M = 400  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 500  # number of time samples
+Q = 10000  # number of time samples
 
 
 # Constants
@@ -26,16 +26,21 @@ epsilon_r = np.ones((M))
 
 # set the local conductivity array
 sigma = np.zeros((M))
-sigma[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 1e-2
+sigma[300:320] = 1
 
 # derived parameters
 DELTA_X = c_vide / (FREQ_REF * 40)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
+DELTA_T = 1 / (2 * FREQ_REF * 400)  # in seconds
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
 print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
+
+# check the stability condition
+print("feedback current max multiplier : ", (DELTA_T /  e0) * np.max(sigma))
+assert ((DELTA_T /  e0) * np.max(sigma)<1), "stability condition not met"
+
 
 # %%
 # initialise the starting values
@@ -50,7 +55,7 @@ J_source = np.zeros((Q, M))
 # ) / np.sqrt(2 * np.pi)
 
 # set a sinusoidal current at the middle of the grid
-fraction_on = 0.2
+fraction_on = 1
 J_source[0 : int(Q * fraction_on), round(M / 2)] = (
     1
     / 10
@@ -86,8 +91,9 @@ def forward_E(E: np.array, B_tilde: np.array, J_source: np.array, q: int):
         * (DELTA_T / ((1 / np.sqrt(epsilon_r[1 : M - 1] * e0 * u0)) * DELTA_X))
         * (B_tilde[q - 1, 1 : M - 1] - B_tilde[q - 1, 0 : M - 2])
         - (DELTA_T / (epsilon_r[1 : M - 1] * e0))
-        * [J_source[q - 1, 1 : M - 1] + sigma[1 : M - 1] * E[q - 1, 1 : M - 1]]
+        * (J_source[q - 1, 1 : M - 1] + sigma[1 : M - 1] * E[q - 1, 1 : M - 1])
     )
+
 
     # limit conditions :
     E[q, 0] = E[q - 2, 1]
@@ -145,7 +151,7 @@ ax2.plot(x, sigma, "r")
 ax2.set_ylabel("conductivité", color="r")
 ax2.tick_params(axis="y", labelcolor="r")
 
-frame_devider = 1
+frame_devider = 5
 
 
 def updatefig(i):
@@ -160,6 +166,6 @@ ani = animation.FuncAnimation(
     fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
 )
 
-ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
+#ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 
 plt.show()
