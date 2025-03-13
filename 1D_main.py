@@ -12,7 +12,7 @@ import matplotlib.animation as animation
 # settings parameters
 M = 400  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 2000  # number of time samples
+Q = 500  # number of time samples
 
 
 # Constants
@@ -22,7 +22,11 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # set the local relative permittivity array
 epsilon_r = np.ones((M))
-epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+# epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+
+# set the local conductivity array
+sigma = np.zeros((M))
+sigma[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 1e-1
 
 # derived parameters
 DELTA_X = c_vide / (FREQ_REF * 40)  # in meters
@@ -59,7 +63,6 @@ J[0 : int(Q * fraction_on), round(M / 2)] = (
 )
 
 
-
 # initialise the arrays
 E = np.zeros((Q, M))
 E[0, :] = E0[:]
@@ -82,7 +85,7 @@ def forward_E(E: np.array, B_tilde: np.array, J: np.array, q: int):
         + (1 / (epsilon_r[1 : M - 1] * e0 * u0))
         * (DELTA_T / ((1 / np.sqrt(epsilon_r[1 : M - 1] * e0 * u0)) * DELTA_X))
         * (B_tilde[q - 1, 1 : M - 1] - B_tilde[q - 1, 0 : M - 2])
-        + (DELTA_T / (epsilon_r[1 : M - 1] * e0)) * J[q, 1 : M - 1]
+        - (DELTA_T / (epsilon_r[1 : M - 1] * e0)) * J[q-1, 1 : M - 1]
     )
 
     # limit conditions :
@@ -105,11 +108,20 @@ def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
     B_tilde[q, M - 1] = B_tilde[q - 2, M - 2]
     B_tilde[q, 0] = B_tilde[q - 2, 1]
 
+def forward_J(E: np.array, B_tilde: np.array, J: np.array, q: int):
+    """
+    modifies J in place at step q
+    q : int : the time step : has to be between 1 and Q-1
+    """
+    # the first term is the source term that was defined earlier
+    J[q, 1 : M - 1] = J[q, 1 : M - 1] + sigma[1 : M - 1] * E[q-1, 1 : M - 1]
+
 
 def main():
     for q in range(1, Q):
         forward_E(E, B_tilde, J, q)
         forward_B_tilde(E, B_tilde, q)
+        forward_J(E, B_tilde, J, q)
 
 
 # %%
@@ -126,34 +138,36 @@ ax1.set_xlabel("x (m)")
 ax1.set_ylabel("E (V/m)")
 ax1.set_title("1D FDTD simulation")
 ax1.tick_params(axis="y", labelcolor="b")
-(line,) = plt.plot(x, E[0], label="0 s", color="b")
+(lineE,) = plt.plot(x, E[0], label="0 s", color="b")
+(lineJ,) = plt.plot(x, J[0], label="0 s", color="g")
 plt.legend()
 plt.ylim(
-    np.min(E, axis=None),
-    np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
+    -10,#np.min(E, axis=None),
+    10 #np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
 )
 
 # show the relative permittivity on the plot
 # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/two_scales.html
 ax2 = ax1.twinx()
-ax2.plot(x, epsilon_r, "r")
-ax2.set_ylabel("permitivité relative", color="r")
+ax2.plot(x, sigma, "r")
+ax2.set_ylabel("conductivité", color="r")
 ax2.tick_params(axis="y", labelcolor="r")
 
 frame_devider = 1
 
 
 def updatefig(i):
-    line.set_ydata(E[i * frame_devider])
-    line.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
+    lineE.set_ydata(E[i * frame_devider])
+    lineE.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
+    lineJ.set_ydata(J[i * frame_devider])
     plt.legend()
-    return (line,)
+    return (lineE, lineJ)
 
 
 ani = animation.FuncAnimation(
     fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
 )
-# ani.save(, fps=30)
+
+ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 
 plt.show()
-# ani.save("1D_sine_source_local_permittivity.mp4", fps=60)
