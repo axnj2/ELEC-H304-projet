@@ -99,6 +99,8 @@ def forward_E(E: np.array, B_tilde: np.array, J_source: np.array, q: int):
     E[q, 0] = E[q - 2, 1]
     E[q, M - 1] = E[q - 2, M - 2]
 
+    # FIXME : the limit conditions seam to be broken
+
 
 def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
     """
