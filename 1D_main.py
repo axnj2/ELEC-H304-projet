@@ -12,7 +12,7 @@ import matplotlib.animation as animation
 # settings parameters
 M = 400  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 10000  # number of time samples
+Q = 5000  # number of time samples
 
 
 # Constants
@@ -22,15 +22,15 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # set the local relative permittivity array
 epsilon_r = np.ones((M))
-# epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
 
 # set the local conductivity array
 sigma = np.zeros((M))
-sigma[300:320] = 1
+sigma[300:320] = 0.01
 
 # derived parameters
 DELTA_X = c_vide / (FREQ_REF * 40)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 400)  # in seconds
+DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
@@ -38,8 +38,8 @@ print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
 # check the stability condition
-print("feedback current max multiplier : ", (DELTA_T /  e0) * np.max(sigma))
-assert ((DELTA_T /  e0) * np.max(sigma)<1), "stability condition not met"
+print("feedback current max multiplier : ", (DELTA_T / e0) * np.max(sigma))
+assert (DELTA_T / e0) * np.max(sigma) < 1, "stability condition not met"
 
 
 # %%
@@ -94,21 +94,15 @@ def forward_E(E: np.array, B_tilde: np.array, J_source: np.array, q: int):
         * (J_source[q - 1, 1 : M - 1] + sigma[1 : M - 1] * E[q - 1, 1 : M - 1])
     )
 
-
     # limit conditions :
     E[q, 0] = E[q - 2, 1]
     E[q, M - 1] = E[q - 2, M - 2]
-
-    # FIXME : the limit conditions seam to be broken
-
 
 def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
     """
     modifies B_tilde in place at step q
     q : int : the time step : has to be between 1 and Q-1
     """
-    # limit conditions :
-
     B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + (
         ((1 / np.sqrt(epsilon_r[0 : M - 1] * e0 * u0)) * DELTA_T) / DELTA_X
     ) * (E[q, 1:M] - E[q, 0 : M - 1])
@@ -153,7 +147,7 @@ ax2.plot(x, sigma, "r")
 ax2.set_ylabel("conductivité", color="r")
 ax2.tick_params(axis="y", labelcolor="r")
 
-frame_devider = 5
+frame_devider = 1
 
 
 def updatefig(i):
@@ -168,6 +162,6 @@ ani = animation.FuncAnimation(
     fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
 )
 
-#ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
+# ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 
 plt.show()
