@@ -10,9 +10,9 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-M = 400  # number of space samples
+M = 100  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 5000  # number of time samples
+Q = 500  # number of time samples
 
 
 # Constants
@@ -22,15 +22,16 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # set the local relative permittivity array
 epsilon_r = np.ones((M))
-epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+# epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
 
 # set the local conductivity array
 sigma = np.zeros((M))
-sigma[300:320] = 0.01
+# sigma[300:320] = 0.01
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 40)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+# REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
