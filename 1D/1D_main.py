@@ -29,9 +29,10 @@ sigma = np.zeros((M))
 # sigma[300:320] = 0.01
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+DELTA_X = c_vide / (FREQ_REF *80 )  # in meters
+DELTA_T = 1 / (2 * FREQ_REF *80 )  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
+# REMARK : the final amplitude of the generated wave depends on the DELTA_T and DELTA_X values
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
@@ -160,7 +161,7 @@ def updatefig(i):
 
 
 ani = animation.FuncAnimation(
-    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
+    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=30
 )
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
