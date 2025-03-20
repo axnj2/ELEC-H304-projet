@@ -1,0 +1,9 @@
+{
+    "editor.defaultFormatter": null,
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "python.analysis.typeCheckingMode": "standard"
+}
