@@ -29,8 +29,8 @@ sigma = np.zeros((M))
 # sigma[300:320] = 0.01
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF *80 )  # in meters
-DELTA_T = 1 / (2 * FREQ_REF *80 )  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 80)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # REMARK : the final amplitude of the generated wave depends on the DELTA_T and DELTA_X values
 
@@ -82,7 +82,7 @@ B_tilde[0, :] = B_tilde_0[:]
 # this means that we computing step n for E we use step n-1 for B
 # we also consider B_tilde's grid half a step ahead of E's grid in the space domain
 # this means that x=0 for E <-> x=0.5 for B_tilde
-def forward_E(E: np.array, B_tilde: np.array, J_source: np.array, q: int):
+def forward_E(E: np.ndarray, B_tilde: np.ndarray, J_source: np.ndarray, q: int):
     """
     modifies E in place at step q
     q : int : has to be between 1 and Q-1
@@ -100,7 +100,8 @@ def forward_E(E: np.array, B_tilde: np.array, J_source: np.array, q: int):
     E[q, 0] = E[q - 2, 1]
     E[q, M - 1] = E[q - 2, M - 2]
 
-def forward_B_tilde(E: np.array, B_tilde: np.array, q: int):
+
+def forward_B_tilde(E: np.ndarray, B_tilde: np.ndarray, q: int):
     """
     modifies B_tilde in place at step q
     q : int : the time step : has to be between 1 and Q-1
@@ -152,7 +153,7 @@ ax2.tick_params(axis="y", labelcolor="r")
 frame_devider = 1
 
 
-def updatefig(i):
+def updatefig(i: int):
     lineE.set_ydata(E[i * frame_devider])
     lineE.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
     lineJ.set_ydata(J_source[i * frame_devider])
