@@ -32,7 +32,6 @@ sigma = np.zeros((M))
 DELTA_X = c_vide / (FREQ_REF * 80)  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
-# REMARK : the final amplitude of the generated wave depends on the DELTA_T and DELTA_X values
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
@@ -59,8 +58,8 @@ J_source = np.zeros((Q, M))
 # set a sinusoidal current at the middle of the grid
 fraction_on = 1
 J_source[0 : int(Q * fraction_on), round(M / 2)] = (
-    1
-    / 10
+    0.01
+    / DELTA_X  # insures that the total current is constant
     * np.sin(
         2
         * np.pi
