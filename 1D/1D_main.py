@@ -28,9 +28,11 @@ epsilon_r = np.ones((M))
 sigma = np.zeros((M))
 # sigma[300:320] = 0.01
 
+# slowest speed in the medium
+c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 80)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
+DELTA_X = c_slowest / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
@@ -89,7 +91,7 @@ def forward_E(E: np.ndarray, B_tilde: np.ndarray, J_source: np.ndarray, q: int):
     E[q, 1 : M - 1] = (
         E[q - 1, 1 : M - 1]
         + (1 / (epsilon_r[1 : M - 1] * e0 * u0))
-        * (DELTA_T / ((1 / np.sqrt(epsilon_r[1 : M - 1] * e0 * u0)) * DELTA_X))
+        * (DELTA_T / (c_vide * DELTA_X))
         * (B_tilde[q - 1, 1 : M - 1] - B_tilde[q - 1, 0 : M - 2])
         - (DELTA_T / (epsilon_r[1 : M - 1] * e0))
         * (J_source[q - 1, 1 : M - 1] + sigma[1 : M - 1] * E[q - 1, 1 : M - 1])
@@ -106,7 +108,7 @@ def forward_B_tilde(E: np.ndarray, B_tilde: np.ndarray, q: int):
     q : int : the time step : has to be between 1 and Q-1
     """
     B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + (
-        ((1 / np.sqrt(epsilon_r[0 : M - 1] * e0 * u0)) * DELTA_T) / DELTA_X
+        (c_vide * DELTA_T) / DELTA_X
     ) * (E[q, 1:M] - E[q, 0 : M - 1])
 
     # limit conditions :
