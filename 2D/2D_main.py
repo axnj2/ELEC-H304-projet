@@ -34,6 +34,7 @@ print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 E0 = np.zeros((M, M))
 B_tilde_0 = np.zeros((M, M))
 
+
 # create current density source function
 def get_source_J(q):
     J = np.zeros((M, M))
@@ -42,10 +43,96 @@ def get_source_J(q):
     J[round(M / 2), round(M / 2)] = np.sin(2 * np.pi * FREQ_REF * q * DELTA_T)
     return J
 
-# initialise the arrays
-E = np.zeros((Q, M, M))
-B_tilde = np.zeros((Q, M, M))
-E[0, :, :] = E0
-B_tilde[0, :, :] = B_tilde_0
+
+# initialise the arrays (only one instance saved, they will be updated in place)
+E = np.zeros((M, M))
+B_tilde_x = np.zeros((M, M))
+B_tilde_y = np.zeros((M, M))
+E = E0
+B_tilde_x = B_tilde_0
+B_tilde_y = B_tilde_0
+
+# %%
+
+"""
+latex equation around the point [m,n], m,n in [1, M-1[   : 
+\begin{align}
+E_z^{q+1}[m,n]=&E_z^{q}[m,n] \\
+&+\frac{\Delta t}{\varepsilon_0 \mu_0}  \cdot( \\
+&- \frac{B_x^{q+1 / 2}[m, n+1 / 2]-B_x^{q+1 / 2}[m,n-1 / 2]}{\Delta y}  \\
+&+ \frac{B_y^{q+1 / 2}[m+1 / 2, n]-B_y^{q+1 / 2}[m-1 / 2,n]}{\Delta x} \\
+&) - \mu_{0} J_z^{q+1 / 2}[m,n]
+\end{align}
+
+but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
+"""
 
 
+def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: int):
+    # get the current density
+    J = get_source_J(q)
+
+    # update the electric field
+    E[1 : M - 1, 1 : M - 1] = (
+        E[1 : M - 1, 1 : M - 1]
+        + DELTA_T
+        / (c_vide * e0 * u0)
+        * (
+            -(B_tilde_x[1 : M - 1, 1 : M - 1] - B_tilde_x[1 : M - 1, 0 : M - 2])
+            / DELTA_X
+            + (B_tilde_y[1 : M - 1, 1 : M - 1] - B_tilde_y[0 : M - 2, 1 : M - 1])
+            / DELTA_X
+        )
+        - u0 * J[1 : M - 1, 1 : M - 1]
+    )
+
+
+"""
+latex equations around the point [m,n], m,n in [0, M[   :
+B_x^{q+1 / 2}[m, n+1 / 2]= B_x^{q-1 / 2}[m,n+1 / 2]+\frac{\Delta t}{\Delta y}\left(E_z^q[m,n+1]-E_z^q[m,n]\right)
+
+B_y^{q+1 / 2}[m+1 / 2, n]= B_y^{q-1 / 2}[m+1 / 2,n]+\frac{\Delta t}{\Delta x}\left(E_z^q[m+1,n]-E_z^q[m,n]\right)
+
+but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
+
+"""
+
+
+def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray):
+    # update the magnetic field
+    B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
+        0 : M - 1, 0 : M - 1
+    ] + c_vide * DELTA_T / DELTA_X * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
+
+    B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
+        0 : M - 1, 0 : M - 1
+    ] + c_vide * DELTA_T / DELTA_X * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
+
+# %%
+
+# def update(q: int):
+#     forward_E(E, B_tilde_x, B_tilde_y, q)
+#     forward_B_tilde(E, B_tilde_x, B_tilde_y)
+#     return 
+
+# https://matplotlib.org/stable/gallery/images_contours_and_fields/image_demo.html
+
+fig, ax1 = plt.subplots()
+
+im = ax1.imshow(E, cmap='hot', interpolation='bilinear', origin='lower')
+
+def update(q: int):
+    forward_E(E, B_tilde_x, B_tilde_y, q)
+    forward_B_tilde(E, B_tilde_x, B_tilde_y)
+    im.set_data(20*np.log(E))
+    print(np.min(E, axis=None), np.max(E, axis=None))
+    return (im,)
+
+ani = animation.FuncAnimation(fig, update, frames=range(1, Q))
+
+plt.show()
+
+
+
+
+# %%
