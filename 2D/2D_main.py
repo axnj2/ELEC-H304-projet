@@ -6,6 +6,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import copy
+
+from pprint import pprint
 
 
 # parameters
@@ -21,8 +24,8 @@ u0 = 1.25663706127e-6  # H/m
 c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 10)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 10)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
@@ -40,7 +43,8 @@ def get_source_J(q):
     J = np.zeros((M, M))
     # set a sinusoidal current at the middle of the grid
 
-    J[round(M / 2), round(M / 2)] = np.sin(2 * np.pi * FREQ_REF * q * DELTA_T)
+    if q < Q / 10:
+        J[round(M / 2), round(M / 2)] = 0.1 * np.sin(2 * np.pi * FREQ_REF * q * DELTA_T)
     return J
 
 
@@ -49,8 +53,8 @@ E = np.zeros((M, M))
 B_tilde_x = np.zeros((M, M))
 B_tilde_y = np.zeros((M, M))
 E = E0
-B_tilde_x = B_tilde_0
-B_tilde_y = B_tilde_0
+B_tilde_x = copy.deepcopy(B_tilde_0)
+B_tilde_y = copy.deepcopy(B_tilde_0)
 
 # %%
 
@@ -73,17 +77,15 @@ def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: in
     J = get_source_J(q)
 
     # update the electric field
-    E[1 : M - 1, 1 : M - 1] = (
-        E[1 : M - 1, 1 : M - 1]
+    E[1:M, 1:M] = (
+        E[1:M, 1:M]
         + DELTA_T
-        / (c_vide * e0 * u0)
+        / (c_vide * e0 * u0 * DELTA_X)
         * (
-            -(B_tilde_x[1 : M - 1, 1 : M - 1] - B_tilde_x[1 : M - 1, 0 : M - 2])
-            / DELTA_X
-            + (B_tilde_y[1 : M - 1, 1 : M - 1] - B_tilde_y[0 : M - 2, 1 : M - 1])
-            / DELTA_X
+            -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
+            + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - u0 * J[1 : M - 1, 1 : M - 1]
+        - u0 * J[1:M, 1:M]
     )
 
 
@@ -102,35 +104,44 @@ def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray)
     # update the magnetic field
     B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
         0 : M - 1, 0 : M - 1
-    ] + c_vide * DELTA_T / DELTA_X * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
+    ] + c_vide * DELTA_T / DELTA_X * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
 
     B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
         0 : M - 1, 0 : M - 1
-    ] + c_vide * DELTA_T / DELTA_X * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
+    ] + c_vide * DELTA_T / DELTA_X * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
+
 
 # %%
-
-# def update(q: int):
-#     forward_E(E, B_tilde_x, B_tilde_y, q)
-#     forward_B_tilde(E, B_tilde_x, B_tilde_y)
-#     return 
 
 # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_demo.html
 
 fig, ax1 = plt.subplots()
 
-im = ax1.imshow(E, cmap='hot', interpolation='bilinear', origin='lower')
+im = ax1.imshow(E, interpolation="nearest", origin="lower")
+
 
 def update(q: int):
     forward_E(E, B_tilde_x, B_tilde_y, q)
     forward_B_tilde(E, B_tilde_x, B_tilde_y)
-    im.set_data(20*np.log(E))
+    im.set_data(np.abs(E))
     print(np.min(E, axis=None), np.max(E, axis=None))
     return (im,)
 
-ani = animation.FuncAnimation(fig, update, frames=range(1, Q))
+
+ani = animation.FuncAnimation(fig, update, frames=range(1, Q), interval=200)
 
 plt.show()
+
+# t = 0
+# # %%
+
+# forward_E(E, B_tilde_x, B_tilde_y, t)
+# forward_B_tilde(E, B_tilde_x, B_tilde_y)
+# print("t = ", t, "J = ", np.max(get_source_J(t), axis=None))
+# pprint(E)
+# pprint(B_tilde_x)
+# pprint(B_tilde_y)
+# t+= 1
 
 
 
