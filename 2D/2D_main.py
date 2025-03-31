@@ -58,20 +58,16 @@ B_tilde_y = copy.deepcopy(B_tilde_0)
 
 # %%
 
-"""
-latex equation around the point [m,n], m,n in [1, M-1[   : 
-\begin{align}
-E_z^{q+1}[m,n]=&E_z^{q}[m,n] \\
-&+\frac{\Delta t}{\varepsilon_0 \mu_0}  \cdot( \\
-&- \frac{B_x^{q+1 / 2}[m, n+1 / 2]-B_x^{q+1 / 2}[m,n-1 / 2]}{\Delta y}  \\
-&+ \frac{B_y^{q+1 / 2}[m+1 / 2, n]-B_y^{q+1 / 2}[m-1 / 2,n]}{\Delta x} \\
-&) - \mu_{0} J_z^{q+1 / 2}[m,n]
-\end{align}
 
-but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
-"""
-
-
+# latex equation around the point [m,n], m,n in [1, M-1[   :
+# \begin{align}
+# E_z^{q+1}[m,n]=&E_z^{q}[m,n] \\
+# &+\frac{\Delta t}{\varepsilon_0 \mu_0}  \cdot( \\
+# &- \frac{B_x^{q+1 / 2}[m, n+1 / 2]-B_x^{q+1 / 2}[m,n-1 / 2]}{\Delta y}  \\
+# &+ \frac{B_y^{q+1 / 2}[m+1 / 2, n]-B_y^{q+1 / 2}[m-1 / 2,n]}{\Delta x} \\
+# &) - \mu_{0} J_z^{q+1 / 2}[m,n]
+# \end{align}
+# but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
 def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: int):
     # get the current density
     J = get_source_J(q)
@@ -89,17 +85,10 @@ def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: in
     )
 
 
-"""
-latex equations around the point [m,n], m,n in [0, M[   :
-B_x^{q+1 / 2}[m, n+1 / 2]= B_x^{q-1 / 2}[m,n+1 / 2]+\frac{\Delta t}{\Delta y}\left(E_z^q[m,n+1]-E_z^q[m,n]\right)
-
-B_y^{q+1 / 2}[m+1 / 2, n]= B_y^{q-1 / 2}[m+1 / 2,n]+\frac{\Delta t}{\Delta x}\left(E_z^q[m+1,n]-E_z^q[m,n]\right)
-
-but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
-
-"""
-
-
+# latex equations around the point [m,n], m,n in [0, M[   :
+# B_x^{q+1 / 2}[m, n+1 / 2]= B_x^{q-1 / 2}[m,n+1 / 2]+\frac{\Delta t}{\Delta y}\left(E_z^q[m,n+1]-E_z^q[m,n]\right)
+# B_y^{q+1 / 2}[m+1 / 2, n]= B_y^{q-1 / 2}[m+1 / 2,n]+\frac{\Delta t}{\Delta x}\left(E_z^q[m+1,n]-E_z^q[m,n]\right)
+# but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
 def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray):
     # update the magnetic field
     B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
@@ -142,8 +131,6 @@ plt.show()
 # pprint(B_tilde_x)
 # pprint(B_tilde_y)
 # t+= 1
-
-
 
 
 # %%
