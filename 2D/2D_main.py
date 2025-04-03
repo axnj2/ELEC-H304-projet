@@ -81,7 +81,7 @@ def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: in
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - u0 * J[1:M, 1:M]
+        - DELTA_T / e0 * J[1:M, 1:M]
     )
 
 
@@ -93,7 +93,7 @@ def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray)
     # update the magnetic field
     B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
         0 : M - 1, 0 : M - 1
-    ] + c_vide * DELTA_T / DELTA_X * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
+    ] - c_vide * DELTA_T / DELTA_X * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
 
     B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
         0 : M - 1, 0 : M - 1
