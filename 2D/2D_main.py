@@ -6,6 +6,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+# from matplotlib.colors import LogNorm
 import copy
 
 from pprint import pprint
@@ -13,10 +15,12 @@ from pprint import pprint
 
 # parameters
 # settings parameters
-M = 100  # number of space samples per dimension
+M = 1001  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
-Q = 500  # number of time samples
-
+Q = 1000000  # number of time samples
+TOTAL_CURRENT = 0.01  # A
+INITIAL_ZERO = 1e-16  # initial value for E and B_tilde
+MIN_COLOR = 1e-4  # minimum color value for the image
 
 # Constants
 e0 = 8.8541878188e-12  # F/m
@@ -25,7 +29,8 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # derived parameters
 DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+all_time_max = TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
@@ -34,8 +39,8 @@ print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
 # %%
 # initialise the starting values
-E0 = np.zeros((M, M))
-B_tilde_0 = np.zeros((M, M))
+E0 = np.ones((M, M)) * INITIAL_ZERO
+B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
 
 
 # create current density source function
@@ -43,18 +48,11 @@ def get_source_J(q):
     J = np.zeros((M, M))
     # set a sinusoidal current at the middle of the grid
 
-    if q < Q / 10:
-        J[round(M / 2), round(M / 2)] = 0.1 * np.sin(2 * np.pi * FREQ_REF * q * DELTA_T)
+    J[int(M / 2), int(M / 2)] = (
+        TOTAL_CURRENT / (DELTA_X * DELTA_X) * np.sin(2 * np.pi * FREQ_REF * q * DELTA_T)
+    )
     return J
 
-
-# initialise the arrays (only one instance saved, they will be updated in place)
-E = np.zeros((M, M))
-B_tilde_x = np.zeros((M, M))
-B_tilde_y = np.zeros((M, M))
-E = E0
-B_tilde_x = copy.deepcopy(B_tilde_0)
-B_tilde_y = copy.deepcopy(B_tilde_0)
 
 # %%
 
@@ -83,6 +81,11 @@ def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: in
         )
         - DELTA_T / e0 * J[1:M, 1:M]
     )
+    # set the boundary conditions
+    E[-1, :] = np.zeros((M))
+    E[:, -1] = np.zeros((M))
+    E[0, :] = np.zeros((M))
+    E[:, 0] = np.zeros((M))
 
 
 # latex equations around the point [m,n], m,n in [0, M[   :
@@ -106,18 +109,43 @@ def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray)
 
 fig, ax1 = plt.subplots()
 
-im = ax1.imshow(E, interpolation="nearest", origin="lower")
+initial_image = np.zeros((M, M))
+initial_image[round(M / 2), round(M / 2)] = 1
+initial_image[round(M / 2) + 1, round(M / 2) + 1] = np.log10(MIN_COLOR) / np.log10(
+    all_time_max
+)
+im = ax1.imshow(initial_image, interpolation="nearest", origin="lower", cmap="jet")
+
+E = np.zeros((M, M))
+B_tilde_x = np.zeros((M, M))
+B_tilde_y = np.zeros((M, M))
 
 
-def update(q: int):
-    forward_E(E, B_tilde_x, B_tilde_y, q)
-    forward_B_tilde(E, B_tilde_x, B_tilde_y)
-    im.set_data(np.abs(E))
-    print(np.min(E, axis=None), np.max(E, axis=None))
+def init():
+    # initialise the arrays (only one instance saved, they will be updated in place)
+    E[:, :] = copy.deepcopy(E0)
+    B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
+    B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
     return (im,)
 
 
-ani = animation.FuncAnimation(fig, update, frames=range(1, Q), interval=200)
+init()
+
+
+def update(q: int):
+    global all_time_max
+    forward_E(E, B_tilde_x, B_tilde_y, q)
+    forward_B_tilde(E, B_tilde_x, B_tilde_y)
+    if np.max(np.abs(E)) > all_time_max:
+        all_time_max = np.max(np.abs(E))
+    im.set_data(np.log10(np.abs(E)) / np.log10(all_time_max))
+
+    return (im,)
+
+
+ani = animation.FuncAnimation(
+    fig, update, frames=range(1, Q), interval=0, blit=True, init_func=init
+)
 
 plt.show()
 
