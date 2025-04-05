@@ -6,8 +6,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
-# from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm
 import copy
 
 from pprint import pprint
@@ -15,7 +14,7 @@ from pprint import pprint
 
 # parameters
 # settings parameters
-M = 1001  # number of space samples per dimension
+M = 201  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = 1000000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
@@ -28,8 +27,8 @@ u0 = 1.25663706127e-6  # H/m
 c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 80)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
 all_time_max = TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
@@ -82,10 +81,11 @@ def forward_E(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray, q: in
         - DELTA_T / e0 * J[1:M, 1:M]
     )
     # set the boundary conditions
-    E[-1, :] = np.zeros((M))
-    E[:, -1] = np.zeros((M))
-    E[0, :] = np.zeros((M))
-    E[:, 0] = np.zeros((M))
+    E[-1, :] = np.ones((M)) * INITIAL_ZERO
+    E[:, -1] = np.ones((M)) * INITIAL_ZERO
+    E[0, :] = np.ones((M)) * INITIAL_ZERO
+    E[:, 0] = np.ones((M)) * INITIAL_ZERO
+
 
 
 # latex equations around the point [m,n], m,n in [0, M[   :
@@ -109,12 +109,17 @@ def forward_B_tilde(E: np.ndarray, B_tilde_x: np.ndarray, B_tilde_y: np.ndarray)
 
 fig, ax1 = plt.subplots()
 
-initial_image = np.zeros((M, M))
-initial_image[round(M / 2), round(M / 2)] = 1
-initial_image[round(M / 2) + 1, round(M / 2) + 1] = np.log10(MIN_COLOR) / np.log10(
-    all_time_max
+initial_image = MIN_COLOR * np.ones((M, M))
+
+im = ax1.imshow(
+    initial_image,
+    interpolation="nearest",
+    origin="lower",
+    cmap="jet",
+    norm=LogNorm(vmin=MIN_COLOR, vmax=all_time_max),
 )
-im = ax1.imshow(initial_image, interpolation="nearest", origin="lower", cmap="jet")
+fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
+
 
 E = np.zeros((M, M))
 B_tilde_x = np.zeros((M, M))
@@ -136,9 +141,7 @@ def update(q: int):
     global all_time_max
     forward_E(E, B_tilde_x, B_tilde_y, q)
     forward_B_tilde(E, B_tilde_x, B_tilde_y)
-    if np.max(np.abs(E)) > all_time_max:
-        all_time_max = np.max(np.abs(E))
-    im.set_data(np.log10(np.abs(E)) / np.log10(all_time_max))
+    im.set_data(np.abs(E))
 
     return (im,)
 
