@@ -9,7 +9,7 @@ import matplotlib.animation as animation
 from matplotlib.colors import LogNorm
 import copy
 
-from yee_FDTD_2D import step_yee, e0, u0, c_vide
+from yee_FDTD_2D import step_yee, e0, c_vide
 from current_sources import sinusoïdal_point_source
 
 # parameters
@@ -121,4 +121,5 @@ def update(q: int):
 ani = animation.FuncAnimation(
     fig, update, frames=range(1, Q), interval=0, blit=True, init_func=init
 )
+
 plt.show()
