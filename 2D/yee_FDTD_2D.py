@@ -117,6 +117,7 @@ def step_yee(
         dt (float, optional): time step in [s]. Defaults to DELTA_T.
         dx (float, optional): space step in [m]. Defaults to DELTA_X.
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
+        perferct_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
     """
 
     # infer the grid size
@@ -136,6 +137,9 @@ def step_yee(
 
     forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func)
 
+    if perferct_conductor_mask is not None:
+        pass #TODO implement this
+
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
 
 
@@ -150,21 +154,26 @@ def simulate_and_animate(
     m_max: int,
     current_func: Callable[[int], np.ndarray] | None = None,
     perfect_conductor_mask: np.ndarray | None = None,
+    step_per_frame: int = 1,
     file_name: str | None = None,
 ) -> None:
-    """Run the simulation and 
+    """Run the simulation and show the animation.
+    This function will create a figure and an animation of the simulation.
+    If a file_name is provided, the animation will not be shown, but saved to the file as an mp4.
 
     Args:
-        E0 (np.ndarray): _description_
-        B_tilde_0 (np.ndarray): _description_
-        dt (float): _description_
-        dx (float): _description_
-        min_color_value (float): _description_
-        max_color_value (float): _description_
-        q_max (int): _description_
-        m_max (int): _description_
-        current_func (Callable[[int], np.ndarray] | None, optional): _description_. Defaults to None.
-        perfect_conductor_mask (np.ndarray | None, optional): _description_. Defaults to None.
+        E0 (np.ndarray): [V/m] 2D array of the initial values of the electric field in the z direction on the main grid
+        B_tilde_0 (np.ndarray): [T] 2D array of the initial values of the magnetic field in both directions
+        dt (float): [s] time step
+        dx (float): [m] space step
+        min_color_value (float): minimum color value for the log norm
+        max_color_value (float): maximum color value for the log norm
+        q_max (int): maximimum number of time steps
+        m_max (int): number of space samples per dimension
+        current_func (Callable[[int], np.ndarray] | None, optional): function to get the current density in [A/m^2]. Defaults to None.
+        perfect_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
+        step_per_frame (int, optional): number of time steps per frame. Defaults to 1.
+        file_name (str | None, optional): name of the file to save the animation, if given the animation won't show. Defaults to None.
     """
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
@@ -174,16 +183,17 @@ def simulate_and_animate(
         return (im,)
 
     def update(q: int):
-        step_yee(
-            E,
-            B_tilde_x,
-            B_tilde_y,
-            q,
-            dt,
-            dx,
-            current_func,
-            perfect_conductor_mask,
-        )
+        for _ in range(step_per_frame):
+            step_yee(
+                E,
+                B_tilde_x,
+                B_tilde_y,
+                q,
+                dt,
+                dx,
+                current_func,
+                perfect_conductor_mask,
+            )
         im.set_data(np.abs(E))
 
         return (im,)
@@ -210,8 +220,10 @@ def simulate_and_animate(
 
     init()
 
-    animation.FuncAnimation(
-        fig, update, frames=range(1, q_max), interval=0, blit=True, init_func=init
+    ani = animation.FuncAnimation(
+        fig, update, frames=range(1, q_max//step_per_frame), interval=0, blit=True, init_func=init
     )
-
-    plt.show()
+    if file_name is None:
+        plt.show()
+    else:
+        ani.save(file_name, fps=30)
