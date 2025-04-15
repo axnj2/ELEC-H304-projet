@@ -1,5 +1,12 @@
 import numpy as np
-from typing import Callable  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
+from typing import (
+    Callable,
+)  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.colors import LogNorm
+import copy
+
 
 # Constants
 e0: float = 8.8541878188e-12  # F/m
@@ -130,3 +137,81 @@ def step_yee(
     forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func)
 
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
+
+
+def simulate_and_animate(
+    E0: np.ndarray,
+    B_tilde_0: np.ndarray,
+    dt: float,
+    dx: float,
+    min_color_value: float,
+    max_color_value: float,
+    q_max: int,
+    m_max: int,
+    current_func: Callable[[int], np.ndarray] | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    file_name: str | None = None,
+) -> None:
+    """Run the simulation and 
+
+    Args:
+        E0 (np.ndarray): _description_
+        B_tilde_0 (np.ndarray): _description_
+        dt (float): _description_
+        dx (float): _description_
+        min_color_value (float): _description_
+        max_color_value (float): _description_
+        q_max (int): _description_
+        m_max (int): _description_
+        current_func (Callable[[int], np.ndarray] | None, optional): _description_. Defaults to None.
+        perfect_conductor_mask (np.ndarray | None, optional): _description_. Defaults to None.
+    """
+    def init():
+        # initialise the arrays (only one instance saved, they will be updated in place)
+        E[:, :] = copy.deepcopy(E0)
+        B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
+        B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
+        return (im,)
+
+    def update(q: int):
+        step_yee(
+            E,
+            B_tilde_x,
+            B_tilde_y,
+            q,
+            dt,
+            dx,
+            current_func,
+            perfect_conductor_mask,
+        )
+        im.set_data(np.abs(E))
+
+        return (im,)
+
+    # allocate the arrays
+    E = np.zeros((m_max, m_max))
+    B_tilde_x = np.zeros((m_max, m_max))
+    B_tilde_y = np.zeros((m_max, m_max))
+
+    fig, ax1 = plt.subplots()
+    fig.set_size_inches(8, 8)
+
+    initial_image = min_color_value * np.ones((m_max, m_max))
+
+    im = ax1.imshow(
+        initial_image,
+        interpolation="nearest",
+        origin="lower",
+        cmap="jet",
+        norm=LogNorm(vmin=min_color_value, vmax=max_color_value),
+    )
+
+    fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
+
+    init()
+
+    animation.FuncAnimation(
+        fig, update, frames=range(1, q_max), interval=0, blit=True, init_func=init
+    )
+
+    plt.show()

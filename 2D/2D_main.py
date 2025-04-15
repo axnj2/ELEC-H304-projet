@@ -23,8 +23,8 @@ MIN_COLOR = 1e-6  # minimum color value for the image
 
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 80)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 80)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
 all_time_max = 10 * TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 def current_func(q:int) -> np.ndarray : 
     return sinusoïdal_point_source(
@@ -69,57 +69,9 @@ B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
 # but we are using B_tilde = c*B so we have to replace B by B_tilde/c in the equation
 
 
-# https://matplotlib.org/stable/gallery/images_contours_and_fields/image_demo.html
-
-fig, ax1 = plt.subplots()
-fig.set_size_inches(8, 8)
-
-initial_image = MIN_COLOR * np.ones((M, M))
-
-im = ax1.imshow(
-    initial_image,
-    interpolation="nearest",
-    origin="lower",
-    cmap="jet",
-    norm=LogNorm(vmin=MIN_COLOR, vmax=all_time_max),
-)
-
-fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
 
 
-E = np.zeros((M, M))
-B_tilde_x = np.zeros((M, M))
-B_tilde_y = np.zeros((M, M))
 
 
-def init():
-    # initialise the arrays (only one instance saved, they will be updated in place)
-    E[:, :] = copy.deepcopy(E0)
-    B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
-    B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-    return (im,)
 
 
-init()
-
-
-def update(q: int):
-    step_yee(
-        E,
-        B_tilde_x,
-        B_tilde_y,
-        q,
-        DELTA_T,
-        DELTA_X,
-        current_func,
-    )
-    im.set_data(np.abs(E))
-
-    return (im,)
-
-
-ani = animation.FuncAnimation(
-    fig, update, frames=range(1, Q), interval=0, blit=True, init_func=init
-)
-
-plt.show()
