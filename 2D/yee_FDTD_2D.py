@@ -4,7 +4,7 @@ from typing import (
 )  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 import copy
 
 
@@ -84,7 +84,8 @@ def forward_B_tilde(
     B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
         0 : M - 1, 0 : M - 1
     ] - c_vide * dt / dx * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
-
+    #                          \y index  |
+    #                                     \x index
     B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
         0 : M - 1, 0 : M - 1
     ] + c_vide * dt / dx * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
@@ -135,12 +136,13 @@ def step_yee(
             "Error: E and J must have the same shape"
         )
 
+    forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
     forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func)
 
     if perferct_conductor_mask is not None:
         pass #TODO implement this
 
-    forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
+    
 
 
 def simulate_and_animate(
@@ -156,6 +158,8 @@ def simulate_and_animate(
     perfect_conductor_mask: np.ndarray | None = None,
     step_per_frame: int = 1,
     file_name: str | None = None,
+    min_time_per_frame: int = 0,
+    norm_type: str = "log",
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -174,7 +178,24 @@ def simulate_and_animate(
         perfect_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
         step_per_frame (int, optional): number of time steps per frame. Defaults to 1.
         file_name (str | None, optional): name of the file to save the animation, if given the animation won't show. Defaults to None.
+        min_time_per_frame (int, optional): minimum time per frame in milliseconds. Defaults to 0.
+        norm_type (str, optional): type of normalization to use, implemented options log, abslin, lin. Defaults to "log".
     """
+    # check the norm type
+    match norm_type:
+        case "log":
+            norm = LogNorm(vmin=min_color_value, vmax=max_color_value)
+            show_abs = True
+        case "abslin":
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            show_abs = True
+        case "lin":
+            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
+            show_abs = False
+        case _:
+            raise ValueError(f"Unknown norm_type: {norm_type}")
+    
+
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
         E[:, :] = copy.deepcopy(E0)
@@ -194,7 +215,10 @@ def simulate_and_animate(
                 current_func,
                 perfect_conductor_mask,
             )
-        im.set_data(np.abs(E))
+        if show_abs:
+            im.set_data(np.abs(E))
+        else:
+            im.set_data(E)
 
         return (im,)
 
@@ -208,12 +232,10 @@ def simulate_and_animate(
 
     initial_image = min_color_value * np.ones((m_max, m_max))
 
+    
+
     im = ax1.imshow(
-        initial_image,
-        interpolation="nearest",
-        origin="lower",
-        cmap="jet",
-        norm=LogNorm(vmin=min_color_value, vmax=max_color_value),
+        initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
     )
 
     fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
@@ -221,7 +243,12 @@ def simulate_and_animate(
     init()
 
     ani = animation.FuncAnimation(
-        fig, update, frames=range(1, q_max//step_per_frame), interval=0, blit=True, init_func=init
+        fig,
+        update,
+        frames=range(1, q_max // step_per_frame),
+        interval=min_time_per_frame,
+        blit=True,
+        init_func=init,
     )
     if file_name is None:
         plt.show()

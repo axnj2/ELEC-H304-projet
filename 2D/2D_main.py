@@ -14,12 +14,12 @@ from current_sources import sinusoïdal_point_source
 
 # parameters
 # settings parameters
-M = 1001  # number of space samples per dimension
+M = 201  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = 1000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 INITIAL_ZERO = 0  # initial value for E and B_tilde
-MIN_COLOR = 1e-6  # minimum color value for the image
+MIN_COLOR = 1e-1  # minimum color value for the image
 
 
 # derived parameters
@@ -52,5 +52,5 @@ E0 = np.ones((M, M)) * INITIAL_ZERO
 B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
 
 simulate_and_animate(
-    E0, B_tilde_0, DELTA_T, DELTA_X, MIN_COLOR, all_time_max * 2, Q, M, current_func
+    E0, B_tilde_0, DELTA_T, DELTA_X, MIN_COLOR, all_time_max , Q, M, current_func, norm_type="log", file_name="2D_hypnotic.mp4"
 )
