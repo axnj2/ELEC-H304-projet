@@ -20,7 +20,7 @@ MIN_COLOR = 1e-1  # minimum color value for the image
 # derived parameters
 DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
-all_time_max = 10 * TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
+all_time_max =  TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 
 
 def current_func(q: int) -> np.ndarray:
@@ -52,11 +52,11 @@ simulate_and_animate(
     DELTA_T,
     DELTA_X,
     MIN_COLOR,
-    all_time_max,
+    all_time_max/10,
     Q,
     M,
     current_func,
-    norm_type="log",
+    norm_type="lin",
     use_progress_bar=True,
     file_name="test_save.mp4",
 )

@@ -212,10 +212,10 @@ def simulate_and_animate(
             norm = LogNorm(vmin=min_color_value, vmax=max_color_value)
             show_abs = True
         case "abslin":
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
             show_abs = True
         case "lin":
-            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
             show_abs = False
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
