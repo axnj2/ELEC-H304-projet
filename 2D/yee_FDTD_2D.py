@@ -167,24 +167,44 @@ def simulate_and_animate(
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
-    If a file_name is provided, the animation will not be shown, but saved to the file as an mp4.
+    If a file_name is provided, the animation will not be shown, 
+    but saved to the file as an mp4.
 
     Args:
-        E0 (np.ndarray): [V/m] 2D array of the initial values of the electric field in the z direction on the main grid
-        B_tilde_0 (np.ndarray): [T] 2D array of the initial values of the magnetic field in both directions
-        dt (float): [s] time step
-        dx (float): [m] space step
-        min_color_value (float): minimum color value for the log norm
-        max_color_value (float): maximum color value for the log norm
-        q_max (int): maximimum number of time steps
-        m_max (int): number of space samples per dimension
-        current_func (Callable[[int], np.ndarray] | None, optional): function to get the current density in [A/m^2]. Defaults to None.
-        perfect_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
-        step_per_frame (int, optional): number of time steps per frame. Defaults to 1.
-        file_name (str | None, optional): name of the file to save the animation, if given the animation won't show. Defaults to None.
-        min_time_per_frame (int, optional): minimum time per frame in milliseconds. Defaults to 0.
-        norm_type (str, optional): type of normalization to use, implemented options log, abslin, lin. Defaults to "log".
-        use_progress_bar (bool, optional): whether to use a progress bar for the image_generation #FIXME check this : (only works for the first time showing the image). Defaults to False.
+        E0 (np.ndarray): 
+            [V/m] 2D array of the initial values of the electric field 
+            in the z direction on the main grid
+        B_tilde_0 (np.ndarray): 
+            [T] 2D array of the initial values of the magnetic field in both directions
+        dt (float): 
+            [s] time step
+        dx (float): 
+            [m] space step
+        min_color_value (float): 
+            minimum color value for the log norm
+        max_color_value (float): 
+            maximum color value for the log norm
+        q_max (int): 
+            maximimum number of time steps
+        m_max (int): 
+            number of space samples per dimension
+        current_func (Callable[[int], np.ndarray] | None, optional): 
+            function to get the current density in [A/m^2]. Defaults to None.
+        perfect_conductor_mask (np.ndarray | None, optional): 
+            mask of the perfect conductor region. Defaults to None.
+        step_per_frame (int, optional): 
+            number of time steps per frame. Defaults to 1.
+        file_name (str | None, optional): 
+            name of the file to save the animation, if given the animation won't show. 
+            Defaults to None.
+        min_time_per_frame (int, optional): 
+            minimum time per frame in milliseconds. Defaults to 0.
+        norm_type (str, optional): 
+            type of normalization to use, implemented options "log", "abslin", "lin". 
+            Defaults to "log".
+        use_progress_bar (bool, optional): 
+            Whether to use a progress bar for the image_generation 
+            (only works for the first time showing the image). Defaults to False.
     """
     # check the norm type
     match norm_type:
