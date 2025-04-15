@@ -1,11 +1,16 @@
 import numpy as np
+
 from typing import (
     Callable,
 )  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.colors import LogNorm, Normalize
+
 import copy
+
+from tqdm import tqdm
 
 
 # Constants
@@ -140,9 +145,7 @@ def step_yee(
     forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func)
 
     if perferct_conductor_mask is not None:
-        pass #TODO implement this
-
-    
+        pass  # TODO implement this
 
 
 def simulate_and_animate(
@@ -160,6 +163,7 @@ def simulate_and_animate(
     file_name: str | None = None,
     min_time_per_frame: int = 0,
     norm_type: str = "log",
+    use_progress_bar: bool = False,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -180,6 +184,7 @@ def simulate_and_animate(
         file_name (str | None, optional): name of the file to save the animation, if given the animation won't show. Defaults to None.
         min_time_per_frame (int, optional): minimum time per frame in milliseconds. Defaults to 0.
         norm_type (str, optional): type of normalization to use, implemented options log, abslin, lin. Defaults to "log".
+        use_progress_bar (bool, optional): whether to use a progress bar for the image_generation #FIXME check this : (only works for the first time showing the image). Defaults to False.
     """
     # check the norm type
     match norm_type:
@@ -194,13 +199,22 @@ def simulate_and_animate(
             show_abs = False
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
-    
+
+    match use_progress_bar:
+        case True:
+            frames = tqdm(range(1, q_max // step_per_frame), unit="f")
+            frames.set_description("Generating image")
+        case False:
+            frames = range(1, q_max // step_per_frame)
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
+        if frames is tqdm:
+            # clear the progress bar
+            frames.clear()
         return (im,)
 
     def update(q: int):
@@ -232,8 +246,6 @@ def simulate_and_animate(
 
     initial_image = min_color_value * np.ones((m_max, m_max))
 
-    
-
     im = ax1.imshow(
         initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
     )
@@ -245,7 +257,7 @@ def simulate_and_animate(
     ani = animation.FuncAnimation(
         fig,
         update,
-        frames=range(1, q_max // step_per_frame),
+        frames=frames,
         interval=min_time_per_frame,
         blit=True,
         init_func=init,

@@ -2,12 +2,7 @@
 # 2D simulation using Yee's algorithm
 # to simulate electromagnetic waves.
 
-
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from matplotlib.colors import LogNorm
-import copy
 
 from yee_FDTD_2D import simulate_and_animate, e0, c_vide
 from current_sources import sinusoïdal_point_source
@@ -16,7 +11,7 @@ from current_sources import sinusoïdal_point_source
 # settings parameters
 M = 201  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
-Q = 1000  # number of time samples
+Q = 100  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 INITIAL_ZERO = 0  # initial value for E and B_tilde
 MIN_COLOR = 1e-1  # minimum color value for the image
@@ -52,5 +47,16 @@ E0 = np.ones((M, M)) * INITIAL_ZERO
 B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
 
 simulate_and_animate(
-    E0, B_tilde_0, DELTA_T, DELTA_X, MIN_COLOR, all_time_max , Q, M, current_func, norm_type="log", file_name="2D_hypnotic.mp4"
+    E0,
+    B_tilde_0,
+    DELTA_T,
+    DELTA_X,
+    MIN_COLOR,
+    all_time_max,
+    Q,
+    M,
+    current_func,
+    norm_type="log",
+    use_progress_bar=True,
+    file_name="test_save.mp4",
 )
