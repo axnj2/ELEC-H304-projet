@@ -16,7 +16,7 @@ from tqdm import tqdm
 # Constants
 e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
-c_vide: float = 1 / np.sqrt(e0 * u0)  # m/s
+C_VIDE: float = 1 / np.sqrt(e0 * u0)  # m/s
 
 
 def forward_E(
@@ -51,7 +51,7 @@ def forward_E(
     E[1:M, 1:M] = (
         E[1:M, 1:M]
         + dt
-        / (c_vide * e0 * u0 * dx)
+        / (C_VIDE * e0 * u0 * dx)
         * (
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
@@ -88,12 +88,12 @@ def forward_B_tilde(
     # update the magnetic field
     B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
         0 : M - 1, 0 : M - 1
-    ] - c_vide * dt / dx * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
+    ] - C_VIDE * dt / dx * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
     #                          \y index  |
     #                                     \x index
     B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
         0 : M - 1, 0 : M - 1
-    ] + c_vide * dt / dx * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
+    ] + C_VIDE * dt / dx * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
 
 
 def step_yee(
@@ -167,43 +167,43 @@ def simulate_and_animate(
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
-    If a file_name is provided, the animation will not be shown, 
+    If a file_name is provided, the animation will not be shown,
     but saved to the file as an mp4.
 
     Args:
-        E0 (np.ndarray): 
-            [V/m] 2D array of the initial values of the electric field 
+        E0 (np.ndarray):
+            [V/m] 2D array of the initial values of the electric field
             in the z direction on the main grid
-        B_tilde_0 (np.ndarray): 
+        B_tilde_0 (np.ndarray):
             [T] 2D array of the initial values of the magnetic field in both directions
-        dt (float): 
+        dt (float):
             [s] time step
-        dx (float): 
+        dx (float):
             [m] space step
-        min_color_value (float): 
+        min_color_value (float):
             minimum color value for the log norm
-        max_color_value (float): 
+        max_color_value (float):
             maximum color value for the log norm
-        q_max (int): 
+        q_max (int):
             maximimum number of time steps
-        m_max (int): 
+        m_max (int):
             number of space samples per dimension
-        current_func (Callable[[int], np.ndarray] | None, optional): 
+        current_func (Callable[[int], np.ndarray] | None, optional):
             function to get the current density in [A/m^2]. Defaults to None.
-        perfect_conductor_mask (np.ndarray | None, optional): 
+        perfect_conductor_mask (np.ndarray | None, optional):
             mask of the perfect conductor region. Defaults to None.
-        step_per_frame (int, optional): 
+        step_per_frame (int, optional):
             number of time steps per frame. Defaults to 1.
-        file_name (str | None, optional): 
-            name of the file to save the animation, if given the animation won't show. 
+        file_name (str | None, optional):
+            name of the file to save the animation, if given the animation won't show.
             Defaults to None.
-        min_time_per_frame (int, optional): 
+        min_time_per_frame (int, optional):
             minimum time per frame in milliseconds. Defaults to 0.
-        norm_type (str, optional): 
-            type of normalization to use, implemented options "log", "abslin", "lin". 
+        norm_type (str, optional):
+            type of normalization to use, implemented options "log", "abslin", "lin".
             Defaults to "log".
-        use_progress_bar (bool, optional): 
-            Whether to use a progress bar for the image_generation 
+        use_progress_bar (bool, optional):
+            Whether to use a progress bar for the image_generation
             (only works for the first time showing the image). Defaults to False.
     """
     # check the norm type
