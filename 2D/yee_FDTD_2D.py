@@ -171,7 +171,7 @@ def step_yee(
     )
 
     if perferct_conductor_mask is not None:
-        pass  # TODO implement this
+        E[perferct_conductor_mask] = 1e-300
 
 
 def simulate_and_animate(
