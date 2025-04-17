@@ -20,7 +20,7 @@ e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / np.sqrt(e0 * u0)  # m/s
 
-
+@njit
 def forward_E(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
@@ -29,7 +29,7 @@ def forward_E(
     M: int,
     dt: float,
     dx: float,
-    current_source_func: Callable[[int], np.ndarray] | None,
+    J: np.ndarray,
     epsilon_r: np.ndarray | None,
     local_conductivity: np.ndarray | None,
 ):
@@ -46,11 +46,7 @@ def forward_E(
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
         epsilon_r (np.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
     """
-    # get the current density
-    if current_source_func is not None:
-        J = current_source_func(q)
-    else:
-        J = np.zeros((M, M))
+    
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
@@ -142,9 +138,15 @@ def step_yee(
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
         perferct_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
     """
-
     # infer the grid size
     M = E.shape[0]
+
+    # get the current density
+    if current_source_func is not None:
+        J = current_source_func(q)
+    else:
+        J = np.zeros((M, M))
+        
     # validate that the dimensions are coeherent
     assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
     assert E.shape == B_tilde_x.shape, "Error: E and B_tilde_x must have the same shape"
@@ -167,7 +169,7 @@ def step_yee(
         M,
         dt,
         dx,
-        current_source_func,
+        J,
         epsilon_r,
         local_conductivity,
     )
