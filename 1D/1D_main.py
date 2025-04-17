@@ -34,6 +34,7 @@ c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
 DELTA_X = c_slowest / (FREQ_REF * 20)  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
+# the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 
 TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
