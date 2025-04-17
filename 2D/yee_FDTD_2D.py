@@ -239,9 +239,6 @@ def simulate_and_animate(
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-        if frames is tqdm:
-            # clear the progress bar
-            frames.clear()
         return (im,)
 
     def update(q: int):
