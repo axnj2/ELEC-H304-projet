@@ -6,12 +6,12 @@ from current_sources import sinusoïdal_point_source
 
 # parameters
 # settings parameters
-M = 201  # number of space samples per dimension
+M = 401  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = 500  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 INITIAL_ZERO = 0  # initial value for E and B_tilde
-MIN_COLOR = 1e-1  # minimum color value for the image
+MIN_COLOR = 1e-4  # minimum color value for the image
 
 
 # derived parameters
@@ -37,7 +37,7 @@ def current_func(q: int) -> np.ndarray:
 E0 = np.ones((M, M)) * INITIAL_ZERO
 B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
 local_conductivity = np.zeros((M, M))
-local_conductivity[0 : M // 4, :] = 0.1
+local_conductivity[0 : M // 4, :] = 0.01
 
 simulate_and_animate(
     E0,
@@ -49,8 +49,7 @@ simulate_and_animate(
     Q,
     M,
     current_func,
-    norm_type="lin",
+    norm_type="log",
     local_conductivity=local_conductivity,
     use_progress_bar=True,
-    file_name="invoke_a_demon.mp4"
 )
