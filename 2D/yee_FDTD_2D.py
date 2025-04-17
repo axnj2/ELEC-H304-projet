@@ -67,7 +67,9 @@ def forward_E(
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - dt / (e0 * epsilon_r[1:M, 1:M]) * (J[1:M, 1:M] + local_conductivity[1:M, 1:M] * E[1:M, 1:M])
+        - dt
+        / (e0 * epsilon_r[1:M, 1:M])
+        * (J[1:M, 1:M] + local_conductivity[1:M, 1:M] * E[1:M, 1:M])
     )
 
     # set the boundary conditions
@@ -115,9 +117,9 @@ def step_yee(
     dt: float,
     dx: float,
     epsilon_r: np.ndarray | None,
-    current_source_func: Callable[[int], np.ndarray] | None = None,
-    perferct_conductor_mask: np.ndarray | None = None,
-    local_conductivity: np.ndarray | None = None,
+    current_source_func: Callable[[int], np.ndarray] | None,
+    perferct_conductor_mask: np.ndarray | None,
+    local_conductivity: np.ndarray | None,
 ):
     """Performs a time step for the Yee algorithm.
     This function updates the electric field E and the magnetic field B_tilde_x
@@ -155,7 +157,18 @@ def step_yee(
         )
 
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
-    forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func, epsilon_r, local_conductivity)
+    forward_E(
+        E,
+        B_tilde_x,
+        B_tilde_y,
+        q,
+        M,
+        dt,
+        dx,
+        current_source_func,
+        epsilon_r,
+        local_conductivity,
+    )
 
     if perferct_conductor_mask is not None:
         pass  # TODO implement this
@@ -178,7 +191,7 @@ def simulate_and_animate(
     file_name: str | None = None,
     min_time_per_frame: int = 0,
     norm_type: str = "log",
-    use_progress_bar: bool = False,
+    use_progress_bar: bool = True,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -245,7 +258,6 @@ def simulate_and_animate(
             frames.set_description("Generating image")
         case False:
             frames = range(1, q_max // step_per_frame)
-    
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
@@ -266,6 +278,7 @@ def simulate_and_animate(
                 local_rel_permittivity,
                 current_func,
                 perfect_conductor_mask,
+                local_conductivity,
             )
         if show_abs:
             im.set_data(np.abs(E))
