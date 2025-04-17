@@ -28,7 +28,8 @@ def forward_E(
     dt: float,
     dx: float,
     current_source_func: Callable[[int], np.ndarray] | None,
-    epsilon_r: np.ndarray,
+    epsilon_r: np.ndarray | None,
+    local_conductivity: np.ndarray | None,
 ):
     """Performs a time step forward for the electric field E.
     Assumes a square grid
@@ -41,12 +42,21 @@ def forward_E(
         dx (float, optional): space step in [m]. Defaults to DELTA_X.
         q (int): time step number
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
+        epsilon_r (np.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
     """
     # get the current density
     if current_source_func is not None:
         J = current_source_func(q)
     else:
         J = np.zeros((M, M))
+
+    # set the epsilon_r to 1 if not provided
+    if epsilon_r is None:
+        epsilon_r = np.ones((M, M))
+
+    # set the local conductivity to 0 if not provided
+    if local_conductivity is None:
+        local_conductivity = np.zeros((M, M))
 
     # update the electric field
     E[1:M, 1:M] = (
@@ -57,7 +67,7 @@ def forward_E(
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - dt / (e0 * epsilon_r[1:M, 1:M]) * J[1:M, 1:M]
+        - dt / (e0 * epsilon_r[1:M, 1:M]) * (J[1:M, 1:M] + local_conductivity[1:M, 1:M] * E[1:M, 1:M])
     )
 
     # set the boundary conditions
@@ -104,9 +114,10 @@ def step_yee(
     q: int,
     dt: float,
     dx: float,
-    epsilon_r: np.ndarray,
+    epsilon_r: np.ndarray | None,
     current_source_func: Callable[[int], np.ndarray] | None = None,
     perferct_conductor_mask: np.ndarray | None = None,
+    local_conductivity: np.ndarray | None = None,
 ):
     """Performs a time step for the Yee algorithm.
     This function updates the electric field E and the magnetic field B_tilde_x
@@ -144,7 +155,7 @@ def step_yee(
         )
 
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
-    forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func, epsilon_r)
+    forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func, epsilon_r, local_conductivity)
 
     if perferct_conductor_mask is not None:
         pass  # TODO implement this
@@ -160,6 +171,7 @@ def simulate_and_animate(
     q_max: int,
     m_max: int,
     current_func: Callable[[int], np.ndarray] | None = None,
+    local_conductivity: np.ndarray | None = None,
     perfect_conductor_mask: np.ndarray | None = None,
     local_rel_permittivity: np.ndarray | None = None,
     step_per_frame: int = 1,
@@ -193,8 +205,12 @@ def simulate_and_animate(
             number of space samples per dimension
         current_func (Callable[[int], np.ndarray] | None, optional):
             function to get the current density in [A/m^2]. Defaults to None.
+        local_conductivity (np.ndarray | None, optional):
+            map of the local conductivity value. Defaults to None.
         perfect_conductor_mask (np.ndarray | None, optional):
             mask of the perfect conductor region. Defaults to None.
+        local_rel_permittivity (np.ndarray | None, optional):
+            map of the local relative permittivity value. Defaults to None.
         step_per_frame (int, optional):
             number of time steps per frame. Defaults to 1.
         file_name (str | None, optional):
@@ -230,9 +246,6 @@ def simulate_and_animate(
         case False:
             frames = range(1, q_max // step_per_frame)
     
-    if local_rel_permittivity is None:
-        # set the local permittivity to 1 everywhere
-        local_rel_permittivity = np.ones((m_max, m_max))
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
