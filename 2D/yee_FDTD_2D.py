@@ -27,7 +27,8 @@ def forward_E(
     M: int,
     dt: float,
     dx: float,
-    current_source_func: Callable[[int], np.ndarray] | None = None,
+    current_source_func: Callable[[int], np.ndarray] | None,
+    epsilon_r: np.ndarray,
 ):
     """Performs a time step forward for the electric field E.
     Assumes a square grid
@@ -51,19 +52,19 @@ def forward_E(
     E[1:M, 1:M] = (
         E[1:M, 1:M]
         + dt
-        / (C_VIDE * e0 * u0 * dx)
+        / (C_VIDE * e0 * epsilon_r[1:M, 1:M] * u0 * dx)
         * (
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - dt / e0 * J[1:M, 1:M]
+        - dt / (e0 * epsilon_r[1:M, 1:M]) * J[1:M, 1:M]
     )
 
     # set the boundary conditions
-    E[-1, :] = np.ones((M)) * 1e-30
-    E[:, -1] = np.ones((M)) * 1e-30
-    E[0, :] = np.ones((M)) * 1e-30
-    E[:, 0] = np.ones((M)) * 1e-30
+    E[-1, :] = np.ones((M)) * 1e-300
+    E[:, -1] = np.ones((M)) * 1e-300
+    E[0, :] = np.ones((M)) * 1e-300
+    E[:, 0] = np.ones((M)) * 1e-300
 
 
 def forward_B_tilde(
@@ -103,6 +104,7 @@ def step_yee(
     q: int,
     dt: float,
     dx: float,
+    epsilon_r: np.ndarray,
     current_source_func: Callable[[int], np.ndarray] | None = None,
     perferct_conductor_mask: np.ndarray | None = None,
 ):
@@ -142,7 +144,7 @@ def step_yee(
         )
 
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
-    forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func)
+    forward_E(E, B_tilde_x, B_tilde_y, q, M, dt, dx, current_source_func, epsilon_r)
 
     if perferct_conductor_mask is not None:
         pass  # TODO implement this
@@ -159,6 +161,7 @@ def simulate_and_animate(
     m_max: int,
     current_func: Callable[[int], np.ndarray] | None = None,
     perfect_conductor_mask: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
     step_per_frame: int = 1,
     file_name: str | None = None,
     min_time_per_frame: int = 0,
@@ -226,6 +229,10 @@ def simulate_and_animate(
             frames.set_description("Generating image")
         case False:
             frames = range(1, q_max // step_per_frame)
+    
+    if local_rel_permittivity is None:
+        # set the local permittivity to 1 everywhere
+        local_rel_permittivity = np.ones((m_max, m_max))
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
@@ -246,6 +253,7 @@ def simulate_and_animate(
                 q,
                 dt,
                 dx,
+                local_rel_permittivity,
                 current_func,
                 perfect_conductor_mask,
             )
