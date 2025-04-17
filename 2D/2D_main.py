@@ -9,7 +9,7 @@ from current_sources import sinusoïdal_point_source
 
 # parameters
 # settings parameters
-M = 201  # number of space samples per dimension
+M = 2001  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = 100  # number of time samples
 TOTAL_CURRENT = 0.01  # A
@@ -58,5 +58,4 @@ simulate_and_animate(
     current_func,
     norm_type="lin",
     use_progress_bar=True,
-    file_name="test_save.mp4",
 )
