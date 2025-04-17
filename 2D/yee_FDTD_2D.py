@@ -12,6 +12,8 @@ import copy
 
 from tqdm import tqdm
 
+from numba import njit
+
 
 # Constants
 e0: float = 8.8541878188e-12  # F/m
@@ -78,7 +80,7 @@ def forward_E(
     E[0, :] = np.ones((M)) * 1e-300
     E[:, 0] = np.ones((M)) * 1e-300
 
-
+@njit
 def forward_B_tilde(
     E: np.ndarray,
     B_tilde_x: np.ndarray,

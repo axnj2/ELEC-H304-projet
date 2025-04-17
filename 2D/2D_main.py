@@ -11,7 +11,7 @@ from current_sources import sinusoïdal_point_source
 # settings parameters
 M = 2001  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
-Q = 100  # number of time samples
+Q = 200  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 INITIAL_ZERO = 0  # initial value for E and B_tilde
 MIN_COLOR = 1e-1  # minimum color value for the image
