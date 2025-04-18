@@ -2,17 +2,16 @@ import numpy as np
 
 from typing import (
     Callable,
+    Iterable,
 )  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
 
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from matplotlib.colors import LogNorm, Normalize
+import pyqtgraph as pg
 
 import copy
 
 from tqdm import tqdm
 
-from numba import njit
+from pyqtgraph.Qt import QtCore
 
 
 # Constants
@@ -20,7 +19,7 @@ e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / np.sqrt(e0 * u0)  # m/s
 
-@njit
+
 def forward_E(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
@@ -46,7 +45,6 @@ def forward_E(
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
         epsilon_r (np.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
     """
-    
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
@@ -76,7 +74,7 @@ def forward_E(
     E[0, :] = np.ones((M)) * 1e-300
     E[:, 0] = np.ones((M)) * 1e-300
 
-@njit
+
 def forward_B_tilde(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
@@ -146,7 +144,7 @@ def step_yee(
         J = current_source_func(q)
     else:
         J = np.zeros((M, M))
-        
+
     # validate that the dimensions are coeherent
     assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
     assert E.shape == B_tilde_x.shape, "Error: E and B_tilde_x must have the same shape"
@@ -244,14 +242,9 @@ def simulate_and_animate(
     """
     # check the norm type
     match norm_type:
-        case "log":
-            norm = LogNorm(vmin=min_color_value, vmax=max_color_value)
-            show_abs = True
-        case "abslin":
-            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
-            show_abs = True
+        # TODO : add log and abs lin
         case "lin":
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            # norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
             show_abs = False
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
@@ -270,8 +263,15 @@ def simulate_and_animate(
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
         return (im,)
 
-    def update(q: int):
+    # allocate the arrays
+    E = np.zeros((m_max, m_max))
+    B_tilde_x = np.zeros((m_max, m_max))
+    B_tilde_y = np.zeros((m_max, m_max))
+    q = 0
+
+    def update(image: pg.ImageItem):
         for _ in range(step_per_frame):
+            q = frames.__iter__().__next__()
             step_yee(
                 E,
                 B_tilde_x,
@@ -285,39 +285,44 @@ def simulate_and_animate(
                 local_conductivity,
             )
         if show_abs:
-            im.set_data(np.abs(E))
+            image.setImage(np.abs(E))
         else:
-            im.set_data(E)
-
-        return (im,)
-
-    # allocate the arrays
-    E = np.zeros((m_max, m_max))
-    B_tilde_x = np.zeros((m_max, m_max))
-    B_tilde_y = np.zeros((m_max, m_max))
-
-    fig, ax1 = plt.subplots()
-    fig.set_size_inches(8, 8)
+            image.setImage(
+                E,
+            )
 
     initial_image = min_color_value * np.ones((m_max, m_max))
 
-    im = ax1.imshow(
-        initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
+    im = pg.image(
+        initial_image,
+        levels=(min_color_value, max_color_value),
     )
+    im.setColorMap(pg.colormap.get("magma"))
 
-    fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
+    # TODO : translate this :
+    # im = ax1.imshow(
+    #     initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
+    # )
 
-    init()
+    # fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
 
-    ani = animation.FuncAnimation(
-        fig,
-        update,
-        frames=frames,
-        interval=min_time_per_frame,
-        blit=True,
-        init_func=init,
-    )
-    if file_name is None:
-        plt.show()
-    else:
-        ani.save(file_name, fps=30)
+    # init()
+
+    # ani = animation.FuncAnimation(
+    #     fig,
+    #     update,
+    #     frames=frames,
+    #     interval=min_time_per_frame,
+    #     blit=True,
+    #     init_func=init,
+    # )
+    # if file_name is None:
+    #     plt.show()
+    # else:
+    #     ani.save(file_name, fps=30)
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(lambda: update(im))
+    timer.start(min_time_per_frame)
+
+    pg.exec()

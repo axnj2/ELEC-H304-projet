@@ -1,4 +1,5 @@
 matplotlib
 numpy
 tqdm
-numba
+pyqtgraph
+PyQt5
