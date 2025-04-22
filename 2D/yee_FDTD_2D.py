@@ -194,6 +194,8 @@ def simulate_and_animate(
     min_time_per_frame: int = 0,
     norm_type: str = "log",
     use_progress_bar: bool = True,
+    precompute: bool = False,
+    loop_animation: bool = True,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -211,7 +213,7 @@ def simulate_and_animate(
         dx (float):
             [m] space step
         min_color_value (float):
-            minimum color value for the log norm
+            deprecated
         max_color_value (float):
             maximum color value for the log norm
         q_max (int):
@@ -239,22 +241,50 @@ def simulate_and_animate(
         use_progress_bar (bool, optional):
             Whether to use a progress bar for the image_generation
             (only works for the first time showing the image). Defaults to False.
+        precompute (bool, optional):
+            Whether to precompute all the frames and show them at once to enable scrolling.
+            can be memory intensive. for large simulation.
+            Defaults to False.
+        loop_animation (bool, optional):
+            Whether to loop the animation. Defaults to True.
     """
     # check the norm type
     match norm_type:
         # TODO : add log and abs lin
+        case "log":
+            # logarithmic scale from 0 to 1
+            scale = np.logspace(-2, 0, 512)
+            show_abs = True
+            levels = (0, max_color_value)
         case "lin":
-            # norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            scale = np.linspace(0, 1, 512)
             show_abs = False
+            levels = (-max_color_value, max_color_value)
+        case "abslin":
+            scale = np.linspace(0, 1, 512)
+            show_abs = True
+            levels = (0, max_color_value)
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
+    
     match use_progress_bar:
         case True:
             frames = tqdm(range(1, q_max // step_per_frame), unit="f")
             frames.set_description("Generating image")
+            frames = frames.__iter__()
         case False:
             frames = range(1, q_max // step_per_frame)
+            frames = frames.__iter__()
+
+    
+    base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
+
+    base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
+
+    color_map = pg.ColorMap(
+        scale, base_color_map_lookuptable, mapping=pg.ColorMap.MIRROR
+    )
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
@@ -264,14 +294,55 @@ def simulate_and_animate(
         return (im,)
 
     # allocate the arrays
-    E = np.zeros((m_max, m_max))
+    E = np.zeros((m_max, m_max), dtype=np.float32)
     B_tilde_x = np.zeros((m_max, m_max))
     B_tilde_y = np.zeros((m_max, m_max))
     q = 0
 
     def update(image: pg.ImageItem):
-        for _ in range(step_per_frame):
-            q = frames.__iter__().__next__()
+        nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer
+        try:
+            q = frames.__next__()
+        except StopIteration:
+            if loop_animation:
+                frames = range(1, q_max // step_per_frame)
+                frames = frames.__iter__()
+                E[:, :] = copy.deepcopy(E0)
+                B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
+                B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
+                return
+            else:
+                timer.stop()
+                return
+            
+        step_yee(
+            E,
+            B_tilde_x,
+            B_tilde_y,
+            q,
+            dt,
+            dx,
+            local_rel_permittivity,
+            current_func,
+            perfect_conductor_mask,
+            local_conductivity,
+        )
+        if show_abs:
+            image.setImage(
+                np.abs(E),
+                autoLevels=False,
+            )
+        else:
+            image.setImage(
+                E,
+                autoLevels=False,
+            )
+
+    initial_image = min_color_value * np.ones((m_max, m_max))
+
+    if precompute:
+        all_E = np.zeros((q_max, m_max, m_max))
+        for q in frames:
             step_yee(
                 E,
                 B_tilde_x,
@@ -284,45 +355,29 @@ def simulate_and_animate(
                 perfect_conductor_mask,
                 local_conductivity,
             )
+            all_E[q] = E
+
         if show_abs:
-            image.setImage(np.abs(E))
-        else:
-            image.setImage(
-                E,
+            im = pg.image(
+                np.abs(all_E),
             )
+        else:
+            im = pg.image(
+                all_E,
+            )
+        
 
-    initial_image = min_color_value * np.ones((m_max, m_max))
+        im.setColorMap(color_map)
 
-    im = pg.image(
-        initial_image,
-        levels=(min_color_value, max_color_value),
-    )
-    im.setColorMap(pg.colormap.get("magma"))
+    else:
+        im = pg.image(
+            initial_image,
+            levels=levels,
+        )
+        im.setColorMap(color_map)
 
-    # TODO : translate this :
-    # im = ax1.imshow(
-    #     initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
-    # )
-
-    # fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
-
-    # init()
-
-    # ani = animation.FuncAnimation(
-    #     fig,
-    #     update,
-    #     frames=frames,
-    #     interval=min_time_per_frame,
-    #     blit=True,
-    #     init_func=init,
-    # )
-    # if file_name is None:
-    #     plt.show()
-    # else:
-    #     ani.save(file_name, fps=30)
-
-    timer = QtCore.QTimer()
-    timer.timeout.connect(lambda: update(im))
-    timer.start(min_time_per_frame)
+        timer = QtCore.QTimer()
+        timer.timeout.connect(lambda: update(im))
+        timer.start(min_time_per_frame)
 
     pg.exec()
