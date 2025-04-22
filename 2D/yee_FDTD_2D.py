@@ -332,11 +332,13 @@ def simulate_and_animate(
             image.setImage(
                 np.abs(E),
                 autoLevels=False,
+                autoRange=False,
             )
         else:
             image.setImage(
                 E,
                 autoLevels=False,
+                autoRange=False,
             )
 
     initial_image = min_color_value * np.ones((m_max, m_max))
