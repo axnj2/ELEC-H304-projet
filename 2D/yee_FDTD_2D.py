@@ -2,7 +2,6 @@ import numpy as np
 
 from typing import (
     Callable,
-    Iterable,
 )  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
 
 import pyqtgraph as pg
@@ -270,12 +269,12 @@ def simulate_and_animate(
     
     match use_progress_bar:
         case True:
-            frames = tqdm(range(1, q_max // step_per_frame), unit="f")
-            frames.set_description("Generating image")
-            frames = frames.__iter__()
+            temp = tqdm(range(1, q_max // step_per_frame), unit="f")
+            temp.set_description("Generating image")
+            frames = temp.__iter__()
         case False:
-            frames = range(1, q_max // step_per_frame)
-            frames = frames.__iter__()
+            temp = range(1, q_max // step_per_frame)
+            frames = temp.__iter__()
 
     
     base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
