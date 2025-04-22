@@ -48,11 +48,11 @@ def forward_E(
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
-        epsilon_r = np.ones((M, M))
+        epsilon_r = np.ones((M, M), dtype=np.float32)
 
     # set the local conductivity to 0 if not provided
     if local_conductivity is None:
-        local_conductivity = np.zeros((M, M))
+        local_conductivity = np.zeros((M, M), dtype=np.float32)
 
     # update the electric field
     E[1:M, 1:M] = (
@@ -69,10 +69,10 @@ def forward_E(
     )
 
     # set the boundary conditions
-    E[-1, :] = np.ones((M)) * 1e-300
-    E[:, -1] = np.ones((M)) * 1e-300
-    E[0, :] = np.ones((M)) * 1e-300
-    E[:, 0] = np.ones((M)) * 1e-300
+    E[-1, :] = np.ones((M), dtype=np.float32) * 1e-300
+    E[:, -1] = np.ones((M), dtype=np.float32) * 1e-300
+    E[0, :] = np.ones((M), dtype=np.float32) * 1e-300
+    E[:, 0] = np.ones((M), dtype=np.float32) * 1e-300
 
 
 def forward_B_tilde(
@@ -143,7 +143,7 @@ def step_yee(
     if current_source_func is not None:
         J = current_source_func(q)
     else:
-        J = np.zeros((M, M))
+        J = np.zeros((M, M), dtype=np.float32)
 
     # validate that the dimensions are coeherent
     assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
@@ -291,12 +291,14 @@ def simulate_and_animate(
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-        return (im,)
+
+
+
 
     # allocate the arrays
     E = np.zeros((m_max, m_max), dtype=np.float32)
-    B_tilde_x = np.zeros((m_max, m_max))
-    B_tilde_y = np.zeros((m_max, m_max))
+    B_tilde_x = np.zeros((m_max, m_max), dtype=np.float32)
+    B_tilde_y = np.zeros((m_max, m_max), dtype=np.float32)
     q = 0
 
     def update(image: pg.ImageItem):
@@ -305,11 +307,10 @@ def simulate_and_animate(
             q = frames.__next__()
         except StopIteration:
             if loop_animation:
+                # drop the progress bar even if it was used for animation repeat
                 frames = range(1, q_max // step_per_frame)
                 frames = frames.__iter__()
-                E[:, :] = copy.deepcopy(E0)
-                B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
-                B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
+                init()
                 return
             else:
                 timer.stop()

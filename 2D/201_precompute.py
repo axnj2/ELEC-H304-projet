@@ -43,8 +43,8 @@ print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
 # %%
 # initialise the starting values
-E0 = np.ones((M, M)) * INITIAL_ZERO
-B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
+E0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
+B_tilde_0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
 
 simulate_and_animate(
     E0,
