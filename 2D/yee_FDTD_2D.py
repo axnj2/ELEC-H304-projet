@@ -266,7 +266,6 @@ def simulate_and_animate(
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
-    
     match use_progress_bar:
         case True:
             temp = tqdm(range(1, q_max // step_per_frame), unit="f")
@@ -276,7 +275,6 @@ def simulate_and_animate(
             temp = range(1, q_max // step_per_frame)
             frames = temp.__iter__()
 
-    
     base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
 
     base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
@@ -290,9 +288,6 @@ def simulate_and_animate(
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-
-
-
 
     # allocate the arrays
     E = np.zeros((m_max, m_max), dtype=np.float32)
@@ -314,7 +309,7 @@ def simulate_and_animate(
             else:
                 timer.stop()
                 return
-            
+
         step_yee(
             E,
             B_tilde_x,
@@ -340,9 +335,37 @@ def simulate_and_animate(
                 autoRange=False,
             )
 
-    initial_image = min_color_value * np.ones((m_max, m_max))
+
+
+    # initialise plotting
+    widget = pg.GraphicsLayoutWidget()
+    widget.setWindowTitle("FDTD 2D Yee algorithm")
+    widget.resize(500, 400)  # FIXME can't get the ImageItem to resize properly
+    widget.show()
+
+    plot = widget.addPlot()
+    im = pg.ImageItem(
+        E,
+        autoLevels=False,
+        levels=levels,
+        axisOrder="row-major",
+    )
+    im.setColorMap(color_map)
+    im.setRect(0, 0, 400, 400)  # FIXME can't get the ImageItem to resize properly
+    plot.addItem(im)
+    plot.showAxes(True)  # frame it with a full set of axes
+    plot.invertY(True)
+
+    # add a colorbar
+    color_bar = pg.ColorBarItem(
+        values=levels,
+        label="Electric field [V/m]",
+    )
+    color_bar.setImageItem(im, insert_in=plot)
 
     if precompute:
+        # borken for now (should this be abandoned or kept as is ?)
+        raise NotImplementedError()
         all_E = np.zeros((q_max, m_max, m_max))
         for q in frames:
             step_yee(
@@ -367,17 +390,11 @@ def simulate_and_animate(
             im = pg.image(
                 all_E,
             )
-        
 
         im.setColorMap(color_map)
 
     else:
-        im = pg.image(
-            initial_image,
-            levels=levels,
-        )
         im.setColorMap(color_map)
-
         timer = QtCore.QTimer()
         timer.timeout.connect(lambda: update(im))
         timer.start(min_time_per_frame)
