@@ -11,6 +11,9 @@ import copy
 from tqdm import tqdm
 
 from pyqtgraph.Qt import QtCore
+import pyqtgraph.exporters
+
+import os
 
 
 # Constants
@@ -194,7 +197,7 @@ def simulate_and_animate(
     norm_type: str = "log",
     use_progress_bar: bool = True,
     precompute: bool = False,
-    loop_animation: bool = True,
+    loop_animation: bool | None = None,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -275,6 +278,22 @@ def simulate_and_animate(
             temp = range(1, q_max // step_per_frame)
             frames = temp.__iter__()
 
+
+    # clear temp directory
+    os.makedirs("temp", exist_ok=True)
+    for file in os.listdir("temp"):
+        if file.endswith(".png"):
+            os.remove(os.path.join("temp", file))
+
+    if file_name is not None:
+        if loop_animation:
+            raise ValueError("loop_animation cannot be True if file_name is provided")
+        loop_animation = False
+    else:
+        if loop_animation is None:
+            loop_animation = True
+    
+
     base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
 
     base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
@@ -296,7 +315,7 @@ def simulate_and_animate(
     q = 0
 
     def update(image: pg.ImageItem):
-        nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer
+        nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer, plot
         try:
             q = frames.__next__()
         except StopIteration:
@@ -307,8 +326,9 @@ def simulate_and_animate(
                 init()
                 return
             else:
+                # FIXME : find a way to start the creation of the video if specified
                 timer.stop()
-                return
+                return 
 
         step_yee(
             E,
@@ -333,6 +353,12 @@ def simulate_and_animate(
                 E,
                 autoLevels=False,
                 autoRange=False,
+            )
+        
+        if file_name is not None:
+            # save the image to a file
+            pyqtgraph.exporters.ImageExporter(plot).export(
+                os.path.join("temp", f"frame_{q}.png")
             )
 
 
