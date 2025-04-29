@@ -27,8 +27,8 @@ def sinusoïdal_point_source(
         (np.ndarray): 2D array of the current density in [A/m^2]
     """
 
-    J = np.zeros((M, M))
+    J = np.zeros((M, M), dtype=np.float32)
 
-    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt)
+    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt, dtype=np.float32)
 
     return J

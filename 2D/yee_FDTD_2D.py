@@ -4,15 +4,16 @@ from typing import (
     Callable,
 )  # https://stackoverflow.com/questions/37835179/how-can-i-specify-the-function-type-in-my-type-hints
 
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from matplotlib.colors import LogNorm, Normalize
+import pyqtgraph as pg
 
 import copy
 
 from tqdm import tqdm
 
-from numba import njit
+from pyqtgraph.Qt import QtCore
+import pyqtgraph.exporters
+
+import os
 
 
 # Constants
@@ -20,7 +21,7 @@ e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / np.sqrt(e0 * u0)  # m/s
 
-@njit
+
 def forward_E(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
@@ -46,15 +47,14 @@ def forward_E(
         current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
         epsilon_r (np.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
     """
-    
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
-        epsilon_r = np.ones((M, M))
+        epsilon_r = np.ones((M, M), dtype=np.float32)
 
     # set the local conductivity to 0 if not provided
     if local_conductivity is None:
-        local_conductivity = np.zeros((M, M))
+        local_conductivity = np.zeros((M, M), dtype=np.float32)
 
     # update the electric field
     E[1:M, 1:M] = (
@@ -71,12 +71,12 @@ def forward_E(
     )
 
     # set the boundary conditions
-    E[-1, :] = np.ones((M)) * 1e-300
-    E[:, -1] = np.ones((M)) * 1e-300
-    E[0, :] = np.ones((M)) * 1e-300
-    E[:, 0] = np.ones((M)) * 1e-300
+    E[-1, :] = np.ones((M), dtype=np.float32) * 1e-300
+    E[:, -1] = np.ones((M), dtype=np.float32) * 1e-300
+    E[0, :] = np.ones((M), dtype=np.float32) * 1e-300
+    E[:, 0] = np.ones((M), dtype=np.float32) * 1e-300
 
-@njit
+
 def forward_B_tilde(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
@@ -145,8 +145,8 @@ def step_yee(
     if current_source_func is not None:
         J = current_source_func(q)
     else:
-        J = np.zeros((M, M))
-        
+        J = np.zeros((M, M), dtype=np.float32)
+
     # validate that the dimensions are coeherent
     assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
     assert E.shape == B_tilde_x.shape, "Error: E and B_tilde_x must have the same shape"
@@ -196,6 +196,8 @@ def simulate_and_animate(
     min_time_per_frame: int = 0,
     norm_type: str = "log",
     use_progress_bar: bool = True,
+    precompute: bool = False,
+    loop_animation: bool | None = None,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -213,7 +215,7 @@ def simulate_and_animate(
         dx (float):
             [m] space step
         min_color_value (float):
-            minimum color value for the log norm
+            deprecated
         max_color_value (float):
             maximum color value for the log norm
         q_max (int):
@@ -241,37 +243,157 @@ def simulate_and_animate(
         use_progress_bar (bool, optional):
             Whether to use a progress bar for the image_generation
             (only works for the first time showing the image). Defaults to False.
+        precompute (bool, optional):
+            Whether to precompute all the frames and show them at once to enable scrolling.
+            can be memory intensive. for large simulation.
+            Defaults to False.
+        loop_animation (bool, optional):
+            Whether to loop the animation. Defaults to True.
     """
     # check the norm type
     match norm_type:
+        # TODO : add log and abs lin
         case "log":
-            norm = LogNorm(vmin=min_color_value, vmax=max_color_value)
+            # logarithmic scale from 0 to 1
+            scale = np.logspace(-2, 0, 512)
             show_abs = True
-        case "abslin":
-            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
-            show_abs = True
+            levels = (0, max_color_value)
         case "lin":
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            scale = np.linspace(0, 1, 512)
             show_abs = False
+            levels = (-max_color_value, max_color_value)
+        case "abslin":
+            scale = np.linspace(0, 1, 512)
+            show_abs = True
+            levels = (0, max_color_value)
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
     match use_progress_bar:
         case True:
-            frames = tqdm(range(1, q_max // step_per_frame), unit="f")
-            frames.set_description("Generating image")
+            temp = tqdm(range(1, q_max // step_per_frame), unit="f")
+            temp.set_description("Generating image")
+            frames = temp.__iter__()
         case False:
-            frames = range(1, q_max // step_per_frame)
+            temp = range(1, q_max // step_per_frame)
+            frames = temp.__iter__()
+
+
+    # clear temp directory
+    os.makedirs("temp", exist_ok=True)
+    for file in os.listdir("temp"):
+        if file.endswith(".png"):
+            os.remove(os.path.join("temp", file))
+
+    if file_name is not None:
+        if loop_animation:
+            raise ValueError("loop_animation cannot be True if file_name is provided")
+        loop_animation = False
+    else:
+        if loop_animation is None:
+            loop_animation = True
+    
+
+    base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
+
+    base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
+
+    color_map = pg.ColorMap(
+        scale, base_color_map_lookuptable, mapping=pg.ColorMap.MIRROR
+    )
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-        return (im,)
 
-    def update(q: int):
-        for _ in range(step_per_frame):
+    # allocate the arrays
+    E = np.zeros((m_max, m_max), dtype=np.float32)
+    B_tilde_x = np.zeros((m_max, m_max), dtype=np.float32)
+    B_tilde_y = np.zeros((m_max, m_max), dtype=np.float32)
+    q = 0
+
+    def update(image: pg.ImageItem):
+        nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer, plot
+        try:
+            q = frames.__next__()
+        except StopIteration:
+            if loop_animation:
+                # drop the progress bar even if it was used for animation repeat
+                frames = range(1, q_max // step_per_frame)
+                frames = frames.__iter__()
+                init()
+                return
+            else:
+                # FIXME : find a way to start the creation of the video if specified
+                timer.stop()
+                return 
+
+        step_yee(
+            E,
+            B_tilde_x,
+            B_tilde_y,
+            q,
+            dt,
+            dx,
+            local_rel_permittivity,
+            current_func,
+            perfect_conductor_mask,
+            local_conductivity,
+        )
+        if show_abs:
+            image.setImage(
+                np.abs(E),
+                autoLevels=False,
+                autoRange=False,
+            )
+        else:
+            image.setImage(
+                E,
+                autoLevels=False,
+                autoRange=False,
+            )
+        
+        if file_name is not None:
+            # save the image to a file
+            pyqtgraph.exporters.ImageExporter(plot).export(
+                os.path.join("temp", f"frame_{q}.png")
+            )
+
+
+
+    # initialise plotting
+    widget = pg.GraphicsLayoutWidget()
+    widget.setWindowTitle("FDTD 2D Yee algorithm")
+    widget.resize(500, 400)  # FIXME can't get the ImageItem to resize properly
+    widget.show()
+
+    plot = widget.addPlot()
+    im = pg.ImageItem(
+        E,
+        autoLevels=False,
+        levels=levels,
+        axisOrder="row-major",
+    )
+    im.setColorMap(color_map)
+    im.setRect(0, 0, 400, 400)  # FIXME can't get the ImageItem to resize properly
+    plot.addItem(im)
+    plot.showAxes(True)  # frame it with a full set of axes
+    plot.invertY(True)
+
+    # add a colorbar
+    color_bar = pg.ColorBarItem(
+        values=levels,
+        label="Electric field [V/m]",
+    )
+    color_bar.setImageItem(im, insert_in=plot)
+
+    if precompute:
+        # borken for now (should this be abandoned or kept as is ?)
+        raise NotImplementedError()
+        all_E = np.zeros((q_max, m_max, m_max))
+        for q in frames:
             step_yee(
                 E,
                 B_tilde_x,
@@ -284,40 +406,23 @@ def simulate_and_animate(
                 perfect_conductor_mask,
                 local_conductivity,
             )
+            all_E[q] = E
+
         if show_abs:
-            im.set_data(np.abs(E))
+            im = pg.image(
+                np.abs(all_E),
+            )
         else:
-            im.set_data(E)
+            im = pg.image(
+                all_E,
+            )
 
-        return (im,)
+        im.setColorMap(color_map)
 
-    # allocate the arrays
-    E = np.zeros((m_max, m_max))
-    B_tilde_x = np.zeros((m_max, m_max))
-    B_tilde_y = np.zeros((m_max, m_max))
-
-    fig, ax1 = plt.subplots()
-    fig.set_size_inches(8, 8)
-
-    initial_image = min_color_value * np.ones((m_max, m_max))
-
-    im = ax1.imshow(
-        initial_image, interpolation="nearest", origin="lower", cmap="jet", norm=norm
-    )
-
-    fig.colorbar(im, ax=ax1, orientation="vertical", pad=0.01)
-
-    init()
-
-    ani = animation.FuncAnimation(
-        fig,
-        update,
-        frames=frames,
-        interval=min_time_per_frame,
-        blit=True,
-        init_func=init,
-    )
-    if file_name is None:
-        plt.show()
     else:
-        ani.save(file_name, fps=30)
+        im.setColorMap(color_map)
+        timer = QtCore.QTimer()
+        timer.timeout.connect(lambda: update(im))
+        timer.start(min_time_per_frame)
+
+    pg.exec()

@@ -9,9 +9,9 @@ from current_sources import sinusoïdal_point_source
 
 # parameters
 # settings parameters
-M = 201  # number of space samples per dimension
+M = 2001  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
-Q = 200  # number of time samples
+Q = 2000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 INITIAL_ZERO = 0  # initial value for E and B_tilde
 MIN_COLOR = 1e-1  # minimum color value for the image
@@ -43,8 +43,8 @@ print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
 # %%
 # initialise the starting values
-E0 = np.ones((M, M)) * INITIAL_ZERO
-B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
+E0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
+B_tilde_0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
 
 simulate_and_animate(
     E0,
@@ -52,10 +52,12 @@ simulate_and_animate(
     DELTA_T,
     DELTA_X,
     MIN_COLOR,
-    all_time_max / 10,
+    all_time_max/2,
     Q,
     M,
     current_func,
-    norm_type="lin",
+    norm_type="log",
     use_progress_bar=True,
+    precompute=False,
+    min_time_per_frame=0,
 )
