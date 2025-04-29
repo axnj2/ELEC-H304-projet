@@ -112,6 +112,10 @@ def forward_B_tilde(E: np.ndarray, B_tilde: np.ndarray, q: int):
         (c_vide * DELTA_T) / DELTA_X
     ) * (E[q, 1:M] - E[q, 0 : M - 1])
 
+    # limit conditions :
+    B_tilde[q, M - 1] = B_tilde[q - 2, M - 2]
+    B_tilde[q, 0] = B_tilde[q - 2, 1]
+
 
 def main():
     for q in range(1, Q):
