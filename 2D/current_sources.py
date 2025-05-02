@@ -2,6 +2,7 @@ import numpy as np
 
 
 def sinusoïdal_point_source(
+    previousJ: np.ndarray,
     q: int,
     M: int,
     pos_x: int,
@@ -11,7 +12,7 @@ def sinusoïdal_point_source(
     dt: float,
     dx: float,
     phase: float = 0.0,
-) -> np.ndarray:
+)-> None:
     """Generate a sinusoidal point source with a total given current at [pos_x, pos_y] in the grid.
 
     Args:
@@ -27,9 +28,8 @@ def sinusoïdal_point_source(
     Returns:
         (np.ndarray): 2D array of the current density in [A/m^2]
     """
-
-    J = np.zeros((M, M), dtype=np.float32)
-
-    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt + phase, dtype=np.float32)
-
-    return J
+    previousJ[pos_y, pos_x] = (
+        total_current
+        / (dx * dx)
+        * np.sin(2 * np.pi * frequency * q * dt + phase, dtype=np.float32)
+    )

@@ -111,11 +111,12 @@ def step_yee(
     E: np.ndarray,
     B_tilde_x: np.ndarray,
     B_tilde_y: np.ndarray,
+    J: np.ndarray,
     q: int,
     dt: float,
     dx: float,
     epsilon_r: np.ndarray | None,
-    current_source_func: Callable[[int], np.ndarray] | None,
+    current_source_func: Callable[[int, np.ndarray], None] | None,
     perferct_conductor_mask: np.ndarray | None,
     local_conductivity: np.ndarray | None,
 ):
@@ -143,9 +144,7 @@ def step_yee(
 
     # get the current density
     if current_source_func is not None:
-        J = current_source_func(q)
-    else:
-        J = np.zeros((M, M), dtype=np.float32)
+        current_source_func(q, J)
 
     # validate that the dimensions are coeherent
     assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
@@ -156,9 +155,7 @@ def step_yee(
             "Error: E and perfect conductor mask must have the same shape"
         )
     if current_source_func is not None:
-        assert E.shape == current_source_func(0).shape, (
-            "Error: E and J must have the same shape"
-        )
+        assert E.shape == J.shape, "Error: E and J must have the same shape"
 
     forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
     forward_E(
@@ -187,7 +184,8 @@ def simulate_and_animate(
     max_color_value: float,
     q_max: int,
     m_max: int,
-    current_func: Callable[[int], np.ndarray] | None = None,
+    current_func: Callable[[int, np.ndarray], None] | None = None,
+    J0: np.ndarray | None = None,
     local_conductivity: np.ndarray | None = None,
     perfect_conductor_mask: np.ndarray | None = None,
     local_rel_permittivity: np.ndarray | None = None,
@@ -198,6 +196,7 @@ def simulate_and_animate(
     use_progress_bar: bool = True,
     precompute: bool = False,
     loop_animation: bool | None = None,
+    show_from: int = 0,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -224,6 +223,9 @@ def simulate_and_animate(
             number of space samples per dimension
         current_func (Callable[[int], np.ndarray] | None, optional):
             function to get the current density in [A/m^2]. Defaults to None.
+        J0 (np.ndarray | None, optional):
+            [A/m^2] 2D array of the initial values of the current density.
+            Defaults to None.
         local_conductivity (np.ndarray | None, optional):
             map of the local conductivity value. Defaults to None.
         perfect_conductor_mask (np.ndarray | None, optional):
@@ -278,7 +280,6 @@ def simulate_and_animate(
             temp = range(1, q_max // step_per_frame)
             frames = temp.__iter__()
 
-
     # clear temp directory
     os.makedirs("temp", exist_ok=True)
     for file in os.listdir("temp"):
@@ -292,7 +293,9 @@ def simulate_and_animate(
     else:
         if loop_animation is None:
             loop_animation = True
-    
+
+    if J0 is None:
+        J0 = np.zeros((m_max, m_max), dtype=np.float32)
 
     base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
 
@@ -307,11 +310,13 @@ def simulate_and_animate(
         E[:, :] = copy.deepcopy(E0)
         B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
         B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
+        J[:, :] = copy.deepcopy(J0)
 
     # allocate the arrays
     E = np.zeros((m_max, m_max), dtype=np.float32)
     B_tilde_x = np.zeros((m_max, m_max), dtype=np.float32)
     B_tilde_y = np.zeros((m_max, m_max), dtype=np.float32)
+    J = np.zeros((m_max, m_max), dtype=np.float32)
     q = 0
 
     def update(image: pg.ImageItem):
@@ -328,12 +333,13 @@ def simulate_and_animate(
             else:
                 # FIXME : find a way to start the creation of the video if specified
                 timer.stop()
-                return 
+                return
 
         step_yee(
             E,
             B_tilde_x,
             B_tilde_y,
+            J,
             q,
             dt,
             dx,
@@ -342,31 +348,30 @@ def simulate_and_animate(
             perfect_conductor_mask,
             local_conductivity,
         )
-        if show_abs:
-            image.setImage(
-                np.abs(E),
-                autoLevels=False,
-                autoRange=False,
-            )
-        else:
-            image.setImage(
-                E,
-                autoLevels=False,
-                autoRange=False,
-            )
-        
-        if file_name is not None:
-            # save the image to a file
-            pyqtgraph.exporters.ImageExporter(plot).export(
-                os.path.join("temp", f"frame_{q}.png")
-            )
+        if q >= show_from:
+            if show_abs:
+                image.setImage(
+                    np.abs(E),
+                    autoLevels=False,
+                    autoRange=False,
+                )
+            else:
+                image.setImage(
+                    E,
+                    autoLevels=False,
+                    autoRange=False,
+                )
 
-
+            if file_name is not None:
+                # save the image to a file
+                pyqtgraph.exporters.ImageExporter(plot).export(
+                    os.path.join("temp", f"frame_{q}.png")
+                )
 
     # initialise plotting
     widget = pg.GraphicsLayoutWidget()
     widget.setWindowTitle("FDTD 2D Yee algorithm")
-    widget.resize(1000,900)  # FIXME can't get the ImageItem to resize properly
+    widget.resize(1000, 900)  # FIXME can't get the ImageItem to resize properly
     widget.show()
 
     plot = widget.addPlot()

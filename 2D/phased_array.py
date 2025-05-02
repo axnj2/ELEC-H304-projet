@@ -15,7 +15,7 @@ MIN_COLOR = 1e-1  # minimum color value for the image
 
 # derived parameters
 WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
-REFINEMENT_FACTOR = 100 # number of samples per wavelength (min 20)
+REFINEMENT_FACTOR = 40 # number of samples per wavelength (min 20)
 DELTA_X = WAVE_LENGTH / REFINEMENT_FACTOR # in meters
 DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
 all_time_max = TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
@@ -23,7 +23,7 @@ all_time_max = TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 # Phase array parameters
 # simple source : https://www.youtube.com/watch?v=jSDLfcNhThw
 NUMBER_OF_ELEMENTS = 90  # number of elements in the phased array
-ELEMENT_SPACING = WAVE_LENGTH / 10 # [m]
+ELEMENT_SPACING = WAVE_LENGTH / 5 # [m]
 ELEMENT_SPACING_INDEX = int(ELEMENT_SPACING / DELTA_X)  # number of grid points between elements
 TARGET_ANGLE = 180  # [degrees]
 
@@ -31,11 +31,11 @@ def phase_distribution(index: int) -> float:
 
     return np.pi * index * ELEMENT_SPACING * np.sin(TARGET_ANGLE * np.pi / 180) / WAVE_LENGTH
 
-def current_func(q: int) -> np.ndarray:
+def current_func(q: int, previous_J):
     start_index = int(M / 2) - ELEMENT_SPACING_INDEX * (NUMBER_OF_ELEMENTS - 1) // 2
-    J_source = np.zeros((M, M), dtype=np.float32)
     for ii in range(NUMBER_OF_ELEMENTS):
-        J_source += sinusoïdal_point_source(
+        sinusoïdal_point_source(
+            previous_J,
             q,
             M,
             start_index + ii * ELEMENT_SPACING_INDEX,
@@ -44,13 +44,15 @@ def current_func(q: int) -> np.ndarray:
             FREQ_REF,
             DELTA_T,
             DELTA_X,
-            phase=phase_distribution((ii - (NUMBER_OF_ELEMENTS-1)/2) * ELEMENT_SPACING),
+            phase=phase_distribution(
+                ii
+            ),
         )
-    return J_source
 
 # initialise the starting values
 E0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
 B_tilde_0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
+J0 = np.zeros((M, M), dtype=np.float32)
 
 simulate_and_animate(
     E0,
@@ -61,7 +63,7 @@ simulate_and_animate(
     all_time_max / 2,
     Q,
     M,
-    current_func,
+    current_func=current_func,
     norm_type="log",
     use_progress_bar=True,
     precompute=False,
