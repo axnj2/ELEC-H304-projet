@@ -10,6 +10,7 @@ def sinusoïdal_point_source(
     frequency: float,
     dt: float,
     dx: float,
+    phase: float = 0.0,
 ) -> np.ndarray:
     """Generate a sinusoidal point source with a total given current at [pos_x, pos_y] in the grid.
 
@@ -29,6 +30,6 @@ def sinusoïdal_point_source(
 
     J = np.zeros((M, M), dtype=np.float32)
 
-    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt, dtype=np.float32)
+    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt + phase, dtype=np.float32)
 
     return J
