@@ -366,7 +366,7 @@ def simulate_and_animate(
     # initialise plotting
     widget = pg.GraphicsLayoutWidget()
     widget.setWindowTitle("FDTD 2D Yee algorithm")
-    widget.resize(500, 400)  # FIXME can't get the ImageItem to resize properly
+    widget.resize(1000,900)  # FIXME can't get the ImageItem to resize properly
     widget.show()
 
     plot = widget.addPlot()
