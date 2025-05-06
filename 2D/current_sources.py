@@ -1,8 +1,25 @@
+from typing import TYPE_CHECKING
+
+import numpy as xp
 import numpy as np
+
+if TYPE_CHECKING:
+    pass
+else:
+    try:
+        import cupy
+
+        if cupy.cuda.is_available():
+            xp = cupy
+            print("Using cupy")
+        else:
+            print("Using numpy")
+    except ImportError:
+        print("Using numpy")
 
 
 def sinusoïdal_point_source(
-    previousJ: np.ndarray,
+    previousJ: xp.ndarray,
     q: int,
     M: int,
     pos_x: int,
@@ -26,10 +43,10 @@ def sinusoïdal_point_source(
         dx (float): space step in [m]
 
     Returns:
-        (np.ndarray): 2D array of the current density in [A/m^2]
+        (xp.ndarray): 2D array of the current density in [A/m^2]
     """
     previousJ[pos_y, pos_x] = (
         total_current
         / (dx * dx)
-        * np.sin(2 * np.pi * frequency * q * dt + phase, dtype=np.float32)
+        * xp.sin(2 * np.pi * frequency * q * dt + phase, dtype=xp.float32)
     )
