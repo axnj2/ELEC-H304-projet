@@ -90,7 +90,7 @@ def forward_E(E: np.ndarray, B_tilde: np.ndarray, J_source: np.ndarray, q: int):
     q : int : has to be between 1 and Q-1
     """
     E[q, 1:M] = (
-        E[q - 1, 1 : M ]
+        E[q - 1, 1:M]
         + (1 / (epsilon_r[1:M] * e0 * u0))
         * (DELTA_T / (c_vide * DELTA_X))
         * (B_tilde[q - 1, 1:M] - B_tilde[q - 1, 0 : M - 1])
@@ -111,10 +111,6 @@ def forward_B_tilde(E: np.ndarray, B_tilde: np.ndarray, q: int):
     B_tilde[q, 0 : M - 1] = B_tilde[q - 1, 0 : M - 1] + (
         (c_vide * DELTA_T) / DELTA_X
     ) * (E[q, 1:M] - E[q, 0 : M - 1])
-
-    # limit conditions :
-    B_tilde[q, M - 1] = B_tilde[q - 2, M - 2]
-    B_tilde[q, 0] = B_tilde[q - 2, 1]
 
 
 def main():

@@ -20,8 +20,9 @@ DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
 all_time_max = TOTAL_CURRENT / (DELTA_X * DELTA_X) * DELTA_T / e0
 
 
-def current_func(q: int) -> np.ndarray:
-    return sinusoïdal_point_source(
+def current_func(q: int, current_J) -> None:
+    sinusoïdal_point_source(
+        current_J,
         q,
         M,
         M // 2,

@@ -2,4 +2,5 @@ matplotlib
 numpy
 tqdm
 pyqtgraph
-PyQt5
+pyqt
+ffmpeg

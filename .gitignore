@@ -1,5 +1,7 @@
 .ipynb_checkpoints
 .venv
+.conda
 __pycache__
 .idea/
+temp/
 test.py
