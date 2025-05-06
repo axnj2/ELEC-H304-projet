@@ -450,7 +450,7 @@ def simulate_and_animate(
 
     else:
         im.setColorMap(color_map)
-        timer = QtCore.QTimer()
+        timer = QtCore.QTimer() # type: ignore
         timer.timeout.connect(lambda: update(im))
         timer.start(min_time_per_frame)
 
