@@ -11,3 +11,9 @@ et il faut probablement créer une classe pour le layout de la fenêtre.
 pour finir de générer le film :
 https://github.com/kkroening/ffmpeg-python
 with something like : https://stackoverflow.com/a/63640796
+
+# conda setup : 
+```shell
+conda install -c conda-forge cupy
+conda install --file requirements.txt   
+```

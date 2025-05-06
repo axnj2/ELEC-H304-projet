@@ -1,7 +1,25 @@
+from typing import TYPE_CHECKING
+
+import numpy as xp
 import numpy as np
+
+if TYPE_CHECKING:
+    pass
+else:
+    try:
+        import cupy
+
+        if cupy.cuda.is_available():
+            xp = cupy
+            print("Using cupy")
+        else:
+            print("Using numpy")
+    except ImportError:
+        print("Using numpy")
 
 
 def sinusoïdal_point_source(
+    previousJ: xp.ndarray,
     q: int,
     M: int,
     pos_x: int,
@@ -10,7 +28,8 @@ def sinusoïdal_point_source(
     frequency: float,
     dt: float,
     dx: float,
-) -> np.ndarray:
+    phase: float = 0.0,
+)-> None:
     """Generate a sinusoidal point source with a total given current at [pos_x, pos_y] in the grid.
 
     Args:
@@ -24,11 +43,10 @@ def sinusoïdal_point_source(
         dx (float): space step in [m]
 
     Returns:
-        (np.ndarray): 2D array of the current density in [A/m^2]
+        (xp.ndarray): 2D array of the current density in [A/m^2]
     """
-
-    J = np.zeros((M, M), dtype=np.float32)
-
-    J[pos_y, pos_x] = total_current / (dx * dx) * np.sin(2 * np.pi * frequency * q * dt, dtype=np.float32)
-
-    return J
+    previousJ[pos_y, pos_x] = (
+        total_current
+        / (dx * dx)
+        * xp.sin(2 * np.pi * frequency * q * dt + phase, dtype=xp.float32)
+    )
