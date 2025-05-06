@@ -9,7 +9,7 @@ from current_sources import sinusoïdal_point_source
 
 # parameters
 # settings parameters
-M = 201  # number of space samples per dimension
+M = 2001  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = 200  # number of time samples
 TOTAL_CURRENT = 0.01  # A
