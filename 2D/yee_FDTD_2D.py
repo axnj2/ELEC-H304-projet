@@ -1,4 +1,27 @@
+from typing import TYPE_CHECKING
+
+import numpy as xp
 import numpy as np
+
+
+if TYPE_CHECKING:
+    using_cupy = False
+else:
+    try:
+        import cupy
+
+        using_cupy = False
+        if cupy.cuda.is_available():
+            xp = cupy
+            print("Using cupy")
+            using_cupy = True
+        else:
+            print("Using numpy")
+    except ImportError:
+        print("Using numpy")
+
+
+import math
 
 from typing import (
     Callable,
@@ -19,42 +42,42 @@ import os
 # Constants
 e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
-C_VIDE: float = 1 / np.sqrt(e0 * u0)  # m/s
+C_VIDE: float = 1 / math.sqrt(e0 * u0)  # m/s
 
 
 def forward_E(
-    E: np.ndarray,
-    B_tilde_x: np.ndarray,
-    B_tilde_y: np.ndarray,
+    E: xp.ndarray,
+    B_tilde_x: xp.ndarray,
+    B_tilde_y: xp.ndarray,
     q: int,
     M: int,
     dt: float,
     dx: float,
-    J: np.ndarray,
-    epsilon_r: np.ndarray | None,
-    local_conductivity: np.ndarray | None,
+    J: xp.ndarray,
+    epsilon_r: xp.ndarray | None,
+    local_conductivity: xp.ndarray | None,
 ):
     """Performs a time step forward for the electric field E.
     Assumes a square grid
 
     Args:
-        E (np.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
-        B_tilde_x (np.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
-        B_tilde_y (np.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
+        E (xp.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
+        B_tilde_x (xp.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
+        B_tilde_y (xp.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
         dt (float, optional): time step in [s]. Defaults to DELTA_T.
         dx (float, optional): space step in [m]. Defaults to DELTA_X.
         q (int): time step number
-        current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
-        epsilon_r (np.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
+        current_source_func (Callable[[int], xp.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
+        epsilon_r (xp.ndarray | None, optional): map of the local relative permittivity value. Defaults to None.
     """
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
-        epsilon_r = np.ones((M, M), dtype=np.float32)
+        epsilon_r = xp.ones((M, M), dtype=xp.float32)
 
     # set the local conductivity to 0 if not provided
     if local_conductivity is None:
-        local_conductivity = np.zeros((M, M), dtype=np.float32)
+        local_conductivity = xp.zeros((M, M), dtype=xp.float32)
 
     # update the electric field
     E[1:M, 1:M] = (
@@ -71,16 +94,16 @@ def forward_E(
     )
 
     # set the boundary conditions
-    E[-1, :] = np.ones((M), dtype=np.float32) * 1e-300
-    E[:, -1] = np.ones((M), dtype=np.float32) * 1e-300
-    E[0, :] = np.ones((M), dtype=np.float32) * 1e-300
-    E[:, 0] = np.ones((M), dtype=np.float32) * 1e-300
+    E[-1, :] = xp.ones((M), dtype=xp.float32) * 1e-300
+    E[:, -1] = xp.ones((M), dtype=xp.float32) * 1e-300
+    E[0, :] = xp.ones((M), dtype=xp.float32) * 1e-300
+    E[:, 0] = xp.ones((M), dtype=xp.float32) * 1e-300
 
 
 def forward_B_tilde(
-    E: np.ndarray,
-    B_tilde_x: np.ndarray,
-    B_tilde_y: np.ndarray,
+    E: xp.ndarray,
+    B_tilde_x: xp.ndarray,
+    B_tilde_y: xp.ndarray,
     M: int,
     dt: float,
     dx: float,
@@ -89,9 +112,9 @@ def forward_B_tilde(
     Assumes a square grid
 
     Args:
-        E (np.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
-        B_tilde_x (np.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
-        B_tilde_y (np.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
+        E (xp.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
+        B_tilde_x (xp.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
+        B_tilde_y (xp.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
         dt (float, optional): time step in [s]. Defaults to DELTA_T.
         dx (float, optional): space step in [m]. Defaults to DELTA_X.
     """
@@ -108,17 +131,17 @@ def forward_B_tilde(
 
 
 def step_yee(
-    E: np.ndarray,
-    B_tilde_x: np.ndarray,
-    B_tilde_y: np.ndarray,
-    J: np.ndarray,
+    E: xp.ndarray,
+    B_tilde_x: xp.ndarray,
+    B_tilde_y: xp.ndarray,
+    J: xp.ndarray,
     q: int,
     dt: float,
     dx: float,
-    epsilon_r: np.ndarray | None,
-    current_source_func: Callable[[int, np.ndarray], None] | None,
-    perferct_conductor_mask: np.ndarray | None,
-    local_conductivity: np.ndarray | None,
+    epsilon_r: xp.ndarray | None,
+    current_source_func: Callable[[int, xp.ndarray], None] | None,
+    perferct_conductor_mask: xp.ndarray | None,
+    local_conductivity: xp.ndarray | None,
 ):
     """Performs a time step for the Yee algorithm.
     This function updates the electric field E and the magnetic field B_tilde_x
@@ -130,14 +153,14 @@ def step_yee(
     It assumes a square grid.
 
     Args:
-        E (np.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
-        B_tilde_x (np.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
-        B_tilde_y (np.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
+        E (xp.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
+        B_tilde_x (xp.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
+        B_tilde_y (xp.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
         q (int): time step number
         dt (float, optional): time step in [s]. Defaults to DELTA_T.
         dx (float, optional): space step in [m]. Defaults to DELTA_X.
-        current_source_func (Callable[[int], np.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
-        perferct_conductor_mask (np.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
+        current_source_func (Callable[[int], xp.ndarray], optional): function to get the current density in [A/m^2]. Defaults to get_source_J.
+        perferct_conductor_mask (xp.ndarray | None, optional): mask of the perfect conductor region. Defaults to None.
     """
     # infer the grid size
     M = E.shape[0]
@@ -176,19 +199,19 @@ def step_yee(
 
 
 def simulate_and_animate(
-    E0: np.ndarray,
-    B_tilde_0: np.ndarray,
+    E0: xp.ndarray,
+    B_tilde_0: xp.ndarray,
     dt: float,
     dx: float,
     min_color_value: float,
     max_color_value: float,
     q_max: int,
     m_max: int,
-    current_func: Callable[[int, np.ndarray], None] | None = None,
-    J0: np.ndarray | None = None,
-    local_conductivity: np.ndarray | None = None,
-    perfect_conductor_mask: np.ndarray | None = None,
-    local_rel_permittivity: np.ndarray | None = None,
+    current_func: Callable[[int, xp.ndarray], None] | None = None,
+    J0: xp.ndarray | None = None,
+    local_conductivity: xp.ndarray | None = None,
+    perfect_conductor_mask: xp.ndarray | None = None,
+    local_rel_permittivity: xp.ndarray | None = None,
     step_per_frame: int = 1,
     file_name: str | None = None,
     min_time_per_frame: int = 0,
@@ -204,10 +227,10 @@ def simulate_and_animate(
     but saved to the file as an mp4.
 
     Args:
-        E0 (np.ndarray):
+        E0 (xp.ndarray):
             [V/m] 2D array of the initial values of the electric field
             in the z direction on the main grid
-        B_tilde_0 (np.ndarray):
+        B_tilde_0 (xp.ndarray):
             [T] 2D array of the initial values of the magnetic field in both directions
         dt (float):
             [s] time step
@@ -221,16 +244,16 @@ def simulate_and_animate(
             maximimum number of time steps
         m_max (int):
             number of space samples per dimension
-        current_func (Callable[[int], np.ndarray] | None, optional):
+        current_func (Callable[[int], xp.ndarray] | None, optional):
             function to get the current density in [A/m^2]. Defaults to None.
-        J0 (np.ndarray | None, optional):
+        J0 (xp.ndarray | None, optional):
             [A/m^2] 2D array of the initial values of the current density.
             Defaults to None.
-        local_conductivity (np.ndarray | None, optional):
+        local_conductivity (xp.ndarray | None, optional):
             map of the local conductivity value. Defaults to None.
-        perfect_conductor_mask (np.ndarray | None, optional):
+        perfect_conductor_mask (xp.ndarray | None, optional):
             mask of the perfect conductor region. Defaults to None.
-        local_rel_permittivity (np.ndarray | None, optional):
+        local_rel_permittivity (xp.ndarray | None, optional):
             map of the local relative permittivity value. Defaults to None.
         step_per_frame (int, optional):
             number of time steps per frame. Defaults to 1.
@@ -295,7 +318,7 @@ def simulate_and_animate(
             loop_animation = True
 
     if J0 is None:
-        J0 = np.zeros((m_max, m_max), dtype=np.float32)
+        J0 = xp.zeros((m_max, m_max), dtype=xp.float32)
 
     base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
 
@@ -307,16 +330,16 @@ def simulate_and_animate(
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
-        E[:, :] = copy.deepcopy(E0)
-        B_tilde_x[:, :] = copy.deepcopy(B_tilde_0)
-        B_tilde_y[:, :] = copy.deepcopy(B_tilde_0)
-        J[:, :] = copy.deepcopy(J0)
+        E[:, :] = xp.array(copy.deepcopy(E0))
+        B_tilde_x[:, :] = xp.array(copy.deepcopy(B_tilde_0))
+        B_tilde_y[:, :] = xp.array(copy.deepcopy(B_tilde_0))
+        J[:, :] = xp.array(copy.deepcopy(J0))
 
     # allocate the arrays
-    E = np.zeros((m_max, m_max), dtype=np.float32)
-    B_tilde_x = np.zeros((m_max, m_max), dtype=np.float32)
-    B_tilde_y = np.zeros((m_max, m_max), dtype=np.float32)
-    J = np.zeros((m_max, m_max), dtype=np.float32)
+    E: xp.ndarray = xp.zeros((m_max, m_max), dtype=xp.float32)
+    B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
+    B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
+    J = xp.zeros((m_max, m_max), dtype=xp.float32)
     q = 0
 
     def update(image: pg.ImageItem):
@@ -351,7 +374,7 @@ def simulate_and_animate(
         if q >= show_from:
             if show_abs:
                 image.setImage(
-                    np.abs(E),
+                    xp.abs(E),
                     autoLevels=False,
                     autoRange=False,
                 )
@@ -369,6 +392,7 @@ def simulate_and_animate(
                 )
 
     # initialise plotting
+    pyqtgraph.setConfigOptions(useCupy=using_cupy)
     widget = pg.GraphicsLayoutWidget()
     widget.setWindowTitle("FDTD 2D Yee algorithm")
     widget.resize(1000, 900)  # FIXME can't get the ImageItem to resize properly
