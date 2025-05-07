@@ -15,8 +15,11 @@ with something like : https://stackoverflow.com/a/63640796
 ## colormap choice
 https://www.nature.com/articles/s41467-020-19160-7 
 
-# conda setup : 
+## conda setup : 
 ```shell
 conda install -c conda-forge cupy
 conda install --file requirements.txt   
 ```
+
+## Gpu support
+For apple metal this could work : https://github.com/ml-explore/mlx
