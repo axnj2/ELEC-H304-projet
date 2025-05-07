@@ -12,6 +12,9 @@ pour finir de générer le film :
 https://github.com/kkroening/ffmpeg-python
 with something like : https://stackoverflow.com/a/63640796
 
+## colormap choice
+https://www.nature.com/articles/s41467-020-19160-7 
+
 # conda setup : 
 ```shell
 conda install -c conda-forge cupy

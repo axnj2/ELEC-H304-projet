@@ -220,6 +220,7 @@ def simulate_and_animate(
     precompute: bool = False,
     loop_animation: bool | None = None,
     show_from: int = 0,
+    theme: str = "w",
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -274,6 +275,10 @@ def simulate_and_animate(
             Defaults to False.
         loop_animation (bool, optional):
             Whether to loop the animation. Defaults to True.
+        show_from (int, optional):
+            The time step from which to show the animation. Defaults to 0.
+        theme (str, optional):
+            The theme to use for the plot either "black" ("b") or "white" ("w"). Defaults to "w".
     """
     # check the norm type
     match norm_type:
@@ -283,14 +288,17 @@ def simulate_and_animate(
             scale = np.logspace(-2, 0, 512)
             show_abs = True
             levels = (0, max_color_value)
-        case "lin":
+            color_map_name = "magma"
+        case "lin" | "linear":
             scale = np.linspace(0, 1, 512)
             show_abs = False
             levels = (-max_color_value, max_color_value)
+            color_map_name = "berlin"
         case "abslin":
             scale = np.linspace(0, 1, 512)
             show_abs = True
             levels = (0, max_color_value)
+            color_map_name = "magma"
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
@@ -302,6 +310,13 @@ def simulate_and_animate(
         case False:
             temp = range(1, q_max // step_per_frame)
             frames = temp.__iter__()
+
+    match theme:
+        case "black" | "b":
+            pass
+        case "white" | "w":
+            pg.setConfigOption('background', 'w')
+            pg.setConfigOption('foreground', 'k')
 
     # clear temp directory
     os.makedirs("temp", exist_ok=True)
@@ -319,8 +334,11 @@ def simulate_and_animate(
 
     if J0 is None:
         J0 = xp.zeros((m_max, m_max), dtype=xp.float32)
-
-    base_color_map: pg.ColorMap = pg.colormap.get("magma")  # type: ignore
+    
+    
+    # transform the matplotlib colormap to a pyqtgraph colormap
+    base_color_map: pg.ColorMap = pg.colormap.get(color_map_name, source="matplotlib")  # type: ignore
+    
 
     base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
 
@@ -371,6 +389,11 @@ def simulate_and_animate(
             perfect_conductor_mask,
             local_conductivity,
         )
+
+        plot.setTitle(
+            f"Electric field in the z direction at time {q * dt:.2e} s"
+        )
+
         if q >= show_from:
             if show_abs:
                 image.setImage(
@@ -398,7 +421,9 @@ def simulate_and_animate(
     widget.resize(1000, 900)  # FIXME can't get the ImageItem to resize properly
     widget.show()
 
-    plot = widget.addPlot()
+    plot = widget.addPlot(
+        title="Electric field in the z direction at time 0 s",
+    )
     im = pg.ImageItem(
         E,
         autoLevels=False,
@@ -412,46 +437,26 @@ def simulate_and_animate(
     plot.invertY(True)
 
     # add a colorbar
+    color_bar_label = ""
+    match norm_type:
+        case "log":
+            color_bar_label = "log(Ez)"
+        case "lin":
+            color_bar_label = "Ez [V/m]"
+        case "abslin":
+            color_bar_label = "abs(Ez) [V/m]"
+        case _:
+            raise ValueError(f"Unknown norm_type: {norm_type}")
+
     color_bar = pg.ColorBarItem(
         values=levels,
-        label="Electric field [V/m]",
+        label=color_bar_label,
     )
     color_bar.setImageItem(im, insert_in=plot)
 
-    if precompute:
-        # borken for now (should this be abandoned or kept as is ?)
-        raise NotImplementedError()
-        all_E = np.zeros((q_max, m_max, m_max))
-        for q in frames:
-            step_yee(
-                E,
-                B_tilde_x,
-                B_tilde_y,
-                q,
-                dt,
-                dx,
-                local_rel_permittivity,
-                current_func,
-                perfect_conductor_mask,
-                local_conductivity,
-            )
-            all_E[q] = E
-
-        if show_abs:
-            im = pg.image(
-                np.abs(all_E),
-            )
-        else:
-            im = pg.image(
-                all_E,
-            )
-
-        im.setColorMap(color_map)
-
-    else:
-        im.setColorMap(color_map)
-        timer = QtCore.QTimer() # type: ignore
-        timer.timeout.connect(lambda: update(im))
-        timer.start(min_time_per_frame)
+    im.setColorMap(color_map)
+    timer = QtCore.QTimer() # type: ignore
+    timer.timeout.connect(lambda: update(im))
+    timer.start(min_time_per_frame)
 
     pg.exec()
