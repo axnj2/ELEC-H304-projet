@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 import numpy as xp
 import numpy as np
 
-
+using_cupy = False
 if TYPE_CHECKING:
-    using_cupy = False
+    pass
 else:
     try:
         import cupy
