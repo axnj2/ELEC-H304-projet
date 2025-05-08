@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING
 import numpy as xp
 import numpy as np
 
-using_cupy = False
 if TYPE_CHECKING:
+    using_cupy = False
     pass
 else:
+    using_cupy = False
     try:
         import cupy
 
@@ -315,8 +316,8 @@ def simulate_and_animate(
         case "black" | "b":
             pass
         case "white" | "w":
-            pg.setConfigOption('background', 'w')
-            pg.setConfigOption('foreground', 'k')
+            pg.setConfigOption("background", "w")
+            pg.setConfigOption("foreground", "k")
 
     # clear temp directory
     os.makedirs("temp", exist_ok=True)
@@ -334,11 +335,9 @@ def simulate_and_animate(
 
     if J0 is None:
         J0 = xp.zeros((m_max, m_max), dtype=xp.float32)
-    
-    
+
     # transform the matplotlib colormap to a pyqtgraph colormap
     base_color_map: pg.ColorMap = pg.colormap.get(color_map_name, source="matplotlib")  # type: ignore
-    
 
     base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
 
@@ -390,9 +389,7 @@ def simulate_and_animate(
             local_conductivity,
         )
 
-        plot.setTitle(
-            f"Electric field in the z direction at time {q * dt:.2e} s"
-        )
+        plot.setTitle(f"Electric field in the z direction at time {q * dt:.2e} s")
 
         if q >= show_from:
             if show_abs:
@@ -455,7 +452,7 @@ def simulate_and_animate(
     color_bar.setImageItem(im, insert_in=plot)
 
     im.setColorMap(color_map)
-    timer = QtCore.QTimer() # type: ignore
+    timer = QtCore.QTimer()  # type: ignore
     timer.timeout.connect(lambda: update(im))
     timer.start(min_time_per_frame)
 
