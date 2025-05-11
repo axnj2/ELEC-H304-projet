@@ -5,7 +5,7 @@
 import numpy as np
 
 from yee_FDTD_2D import simulate_and_animate, e0, C_VIDE
-from current_sources import sinusoïdal_point_source
+from simu_elements import sinusoïdal_point_source
 
 # parameters
 # settings parameters

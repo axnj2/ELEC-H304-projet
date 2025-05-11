@@ -2,7 +2,7 @@ import numpy as np
 
 from typing import TYPE_CHECKING
 from yee_FDTD_2D import step_yee, e0, u0, C_VIDE, xp, using_cupy
-from current_sources import sinusoïdal_point_source
+from simu_elements import sinusoïdal_point_source
 
 import matplotlib.pyplot as plt
 
@@ -89,7 +89,7 @@ im = ax1.imshow(
 )
 # plt.colorbar(im, location="left")
 plt.title(
-    f"Electric field E after {M // 2} time steps (t = {DELTA_T * (M // 2):.2e} s)"
+    f"Electric field E after {M // 2} time steps (t = {DELTA_T * Q:.2e} s)"
 )
 
 
@@ -103,7 +103,7 @@ ax2.plot(
 )
 ax2.set_ylabel("r (m)")
 ax2.set_xlabel("|Ez| (V/m)")
-ax2.set_title(f"Electric field E at t = {DELTA_T * (M // 2):.2e} s")
+ax2.set_title(f"Electric field E at t = {DELTA_T * Q:.2e} s")
 
 # add the theoritical value
 Z_0 = np.sqrt(u0 / e0)
@@ -130,6 +130,8 @@ distance = (M // 2 - index[0]) * DELTA_X
 print("distance travalled: ", distance, "m")
 print("time travalled: ", DELTA_T * (Q), "s")
 print("speed: ", distance / (DELTA_T * (Q)), "m/s")
+print("expected speed: ", C_VIDE, "m/s")
+print("relative error: ", (distance / (DELTA_T * (Q)) - C_VIDE) / C_VIDE)
 
 
 plt.savefig("images/current_line_validation.png", bbox_inches="tight")
