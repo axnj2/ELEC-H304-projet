@@ -80,7 +80,6 @@ def forward_E(
     if local_conductivity is None:
         local_conductivity = xp.zeros((M, M), dtype=xp.float32)
 
-    print("min and max epsilon_r", xp.min(epsilon_r), xp.max(epsilon_r))
     # update the electric field
     E[1:M, 1:M] = (
         E[1:M, 1:M]
