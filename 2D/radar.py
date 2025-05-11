@@ -27,17 +27,17 @@ def create_square_target(
     x_size: int,
     y_size: int,
     grid_size: tuple[int, int],
-) -> np.ndarray:
+) ->  np.ndarray:
     """
     Create a perfectly conductive square target.
 
 
     Args:
-        upper_left_corner (tuple[int, int]): _description_
-        x_size (int): _description_
-        y_size (int): _description_
+        upper_left_corner (tuple[int, int]):
+        x_size (int): 
+        y_size (int): 
 
     Returns:
-        np.ndarray: _description_
+        np.ndarray: 
     """
     
