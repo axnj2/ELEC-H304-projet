@@ -23,6 +23,18 @@ brick_wall_conductivity = 0.01  # S/m TODO find a realistic value
 wooden_door_rel_permittivity = 2.0  # TODO find a realistic value
 wooden_door_conductivity = 0.001  # S/m TODO find a realistic value
 
+# from https://doi.org/10.1016/j.jfoodeng.2011.05.031
+# at 20°C and 1800MHz
+meat_relative_real_permittivity = 40.1
+meat_relative_complex_permittivity = 14.3
+cheese_relative_real_permittivity = 25.6
+cheese_relative_complex_permittivity = 11.9
+pasta_relative_real_permittivity = 50.9
+pasta_relative_complex_permittivity = 19.6
+sauce_relative_real_permittivity = 76.4
+sauce_relative_complex_permittivity = 27.6
+
+# thermal_caracteristics
 
 def sinusoïdal_point_source(
     previousJ: xp.ndarray,
