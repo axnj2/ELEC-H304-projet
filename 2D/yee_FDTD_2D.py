@@ -44,6 +44,8 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm, Normalize
 
 import os
+import xxhash
+import time
 
 
 # Constants
@@ -521,6 +523,7 @@ def simulate_and_plot(
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
     color_bar=True,
+    current_func_hash: str | None = None,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
     Simulate the Yee algorithm and plot the results on the given matplotlib.axes.Axes object.
@@ -543,52 +546,90 @@ def simulate_and_plot(
     Returns:
         AxesImage: _description_
     """
-    # initialize the arrays and move them to the GPU if using cupy
-    E = xp.zeros((m_max, m_max), dtype=xp.float32)
-    B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
-    B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
-    J = xp.zeros((m_max, m_max), dtype=xp.float32)
-    if E0 is not None:
-        E = xp.array(E0.copy())
-    if B_tilde_x_0 is not None:
-        B_tilde_x = xp.array(B_tilde_x_0.copy())
-    if B_tilde_y_0 is not None:
-        B_tilde_y = xp.array(B_tilde_y_0.copy())
-    if J0 is not None:
-        J = xp.array(J0.copy())
-    if local_conductivity is not None:
-        local_conductivity = xp.array(local_conductivity)
-    if local_rel_permittivity is not None:
-        local_rel_permittivity = xp.array(local_rel_permittivity)
-    if perfect_conductor_mask is not None:
-        perfect_conductor_mask = xp.array(perfect_conductor_mask)
+    # set the python hash function seed
+    file_name = None
+    if current_func_hash is not None:
+        hasher = xxhash.xxh32()
 
-    match use_progress_bar:
-        case True:
-            steps = tqdm(range(1, Q), unit="step")
-            steps.set_description("Generating image")
-        case False:
-            steps = range(1, Q)
+        start_time = time.perf_counter()
+        # add all the parameters to the hash
+        hasher.update(str(dt).encode("utf-8"))
+        hasher.update(str(dx).encode("utf-8"))
+        hasher.update(str(m_max).encode("utf-8"))
+        hasher.update(str(current_func_hash).encode("utf-8"))
+        if local_conductivity is not None:
+            hasher.update(local_conductivity.tobytes())
+        if local_rel_permittivity is not None:
+            hasher.update(local_rel_permittivity.tobytes())
+        if perfect_conductor_mask is not None:
+            hasher.update(perfect_conductor_mask.tobytes())
+        if J0 is not None:
+            hasher.update(J0.tobytes())
+        if E0 is not None:
+            hasher.update(E0.tobytes())
+        if B_tilde_x_0 is not None:
+            hasher.update(B_tilde_x_0.tobytes())
+        if B_tilde_y_0 is not None:
+            hasher.update(B_tilde_y_0.tobytes())
+        parameters_hash = hasher.hexdigest()
+        end_time = time.perf_counter()
+        print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
+        hasher.reset()
+        print(f"Hash of the parameters: {parameters_hash}")
+        file_name = f"temp/simulate_and_plot_{parameters_hash}_{Q}.npy"
 
-    # compute the electric field after Q time steps
-    for q in steps:
-        step_yee(
-            E,
-            B_tilde_x,
-            B_tilde_y,
-            J,
-            q,
-            dt,
-            dx,
-            local_rel_permittivity,
-            current_func,
-            perfect_conductor_mask,
-            local_conductivity,
-        )
+    file_already_cached = False
+    if file_name is not None and os.path.exists(file_name):
+        E = np.load(file_name)
+        print(f"Loaded E from {file_name}")
+        file_already_cached = True
+    else:
+        # initialize the arrays and move them to the GPU if using cupy
+        E = xp.zeros((m_max, m_max), dtype=xp.float32)
+        B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
+        B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
+        J = xp.zeros((m_max, m_max), dtype=xp.float32)
+        if E0 is not None:
+            E = xp.array(E0.copy())
+        if B_tilde_x_0 is not None:
+            B_tilde_x = xp.array(B_tilde_x_0.copy())
+        if B_tilde_y_0 is not None:
+            B_tilde_y = xp.array(B_tilde_y_0.copy())
+        if J0 is not None:
+            J = xp.array(J0.copy())
+        if local_conductivity is not None:
+            local_conductivity = xp.array(local_conductivity)
+        if local_rel_permittivity is not None:
+            local_rel_permittivity = xp.array(local_rel_permittivity)
+        if perfect_conductor_mask is not None:
+            perfect_conductor_mask = xp.array(perfect_conductor_mask)
 
-    if using_cupy and not TYPE_CHECKING:
-        E = xp.asnumpy(E)
-    
+        match use_progress_bar:
+            case True:
+                steps = tqdm(range(1, Q), unit="step")
+                steps.set_description("Generating image")
+            case False:
+                steps = range(1, Q)
+
+        # compute the electric field after Q time steps
+        for q in steps:
+            step_yee(
+                E,
+                B_tilde_x,
+                B_tilde_y,
+                J,
+                q,
+                dt,
+                dx,
+                local_rel_permittivity,
+                current_func,
+                perfect_conductor_mask,
+                local_conductivity,
+            )
+
+        if using_cupy and not TYPE_CHECKING:
+            E = xp.asnumpy(E)
+
     # check the norm type
     match norm_type:
         case "log":
@@ -636,5 +677,13 @@ def simulate_and_plot(
         f"Electric field E after {Q} time steps (t = {dt * Q:.2e} s)",
         fontsize=10,
     )
+
+    # save the electric field to a file with a hash of the parameters as the name
+    if not file_already_cached and file_name is not None:
+        np.save(file_name, E)
+        # compute the file size
+        file_size = os.path.getsize(file_name)
+        file_size_mb = file_size / (1024 * 1024)
+        print(f"Saved E to {file_name} using {file_size_mb:.2f} MB")
 
     return im, E

@@ -4,3 +4,4 @@ tqdm
 pyqtgraph
 pyqt
 ffmpeg
+xxhash
