@@ -71,7 +71,7 @@ def sinusoïdal_point_source(
 
 
 def create_square_boundery(
-    upper_left_corner: np.ndarray,
+    upper_left_corner: np.ndarray | tuple[float, float],
     x_size: float,
     y_size: float,
     grid_size: tuple[int, int],
@@ -153,7 +153,7 @@ def create_square_boundery(
 
 
 def create_square(
-    upper_left_corner: np.ndarray,
+    upper_left_corner: np.ndarray | tuple[float, float],
     x_size: float,
     y_size: float,
     grid_size: tuple[int, int],
