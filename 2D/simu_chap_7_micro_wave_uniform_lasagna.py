@@ -133,6 +133,7 @@ im, E = simulate_and_plot(
     local_conductivity=lasagna_conductivity,
     local_rel_permittivity=lasagna_relative_permittivity,
     current_func_hash=source_hash,
+    min_color_value=1e-2
 )
 plt.show()
 

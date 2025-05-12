@@ -210,6 +210,30 @@ def step_yee(
         E[perferct_conductor_mask] = 1e-300
 
 
+def get_material_mask(
+    local_conductivity, local_rel_permittivity, perfect_conductor_mask
+) -> np.ndarray | None:
+    # show the obstacles based on the local relative permittivity or conductivity
+    # create a yellow transparrent image where the local relative permittivity is not 1 and or the local conductivity is not 0
+    match [local_conductivity, local_rel_permittivity]:
+        case [None, None]:
+            mask = None
+        case [None, _]:
+            mask = local_rel_permittivity != 1.0
+        case [_, None]:
+            mask = local_conductivity != 0.0
+        case _:
+            mask = np.logical_or(
+                local_conductivity != 0.0, local_rel_permittivity != 1.0
+            )
+    if perfect_conductor_mask is not None:
+        if mask is None:
+            mask = perfect_conductor_mask
+        else:
+            mask = np.logical_and(mask, perfect_conductor_mask)
+    return mask
+
+
 def simulate_and_animate(
     E0: xp.ndarray,
     B_tilde_0: xp.ndarray,
@@ -468,24 +492,9 @@ def simulate_and_animate(
     )
     color_bar.setImageItem(im, insert_in=plot)
 
-    # show the obstacles based on the local relative permittivity or conductivity
-    # create a yellow transparrent image where the local relative permittivity is not 1 and or the local conductivity is not 0
-    match [local_conductivity, local_rel_permittivity]:
-        case [None, None]:
-            mask = None
-        case [None, _]:
-            mask = local_rel_permittivity != 1.0
-        case [_, None]:
-            mask = local_conductivity != 0.0
-        case _:
-            mask = xp.logical_or(
-                local_conductivity != 0.0, local_rel_permittivity != 1.0
-            )
-    if perfect_conductor_mask is not None:
-        if mask is None:
-            mask = perfect_conductor_mask
-        else:
-            mask = xp.logical_and(mask, perfect_conductor_mask)
+    mask = get_material_mask(
+        local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    )
 
     if mask is not None:
         material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
@@ -523,6 +532,7 @@ def simulate_and_plot(
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
     color_bar=True,
+    min_color_value: float | None = None,
     current_func_hash: str | None = None,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
@@ -633,11 +643,11 @@ def simulate_and_plot(
     # check the norm type
     match norm_type:
         case "log":
-            norm = LogNorm()
+            norm = LogNorm(vmin=min_color_value)
             show_abs = True
             color_map_name = "magma"
         case "abslin":
-            norm = Normalize()
+            norm = Normalize(vmin=min_color_value)
             show_abs = True
             color_map_name = "magma"
         case "lin":
@@ -677,6 +687,17 @@ def simulate_and_plot(
         f"Electric field E after {Q} time steps (t = {dt * Q:.2e} s)",
         fontsize=10,
     )
+
+    mask = get_material_mask(
+        local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    )
+
+    if mask is not None:
+        material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
+        material_image[mask, :] = xp.asarray(MATERIAL_COLOR)
+        mat_im = ax.imshow(
+            material_image,
+        )
 
     # save the electric field to a file with a hash of the parameters as the name
     if not file_already_cached and file_name is not None:
