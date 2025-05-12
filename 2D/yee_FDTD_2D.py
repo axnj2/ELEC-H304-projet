@@ -45,6 +45,8 @@ e0: float = 8.8541878188e-12  # F/m
 u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / math.sqrt(e0 * u0)  # m/s
 
+# material color
+MATERIAL_COLOR = (92, 20, 122, 255/10) # purple
 
 def forward_E(
     E: xp.ndarray,
@@ -359,6 +361,14 @@ def simulate_and_animate(
     J = xp.zeros((m_max, m_max), dtype=xp.float32)
     q = 0
 
+    if using_cupy:
+        # allocate the material arrays on the GPU
+        if local_rel_permittivity is not None:
+            local_rel_permittivity = xp.array(local_rel_permittivity)
+        if local_conductivity is not None:
+            local_conductivity = xp.array(local_conductivity)
+        
+
     def update(image: pg.ImageItem):
         nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer, plot
         try:
@@ -450,6 +460,39 @@ def simulate_and_animate(
         label=color_bar_label,
     )
     color_bar.setImageItem(im, insert_in=plot)
+
+    # show the obstacles based on the local relative permittivity or conductivity
+    # create a yellow transparrent image where the local relative permittivity is not 1 and or the local conductivity is not 0
+    match [local_conductivity, local_rel_permittivity]:
+        case [None, None]:
+            mask = None
+        case [None, _]:
+            mask = local_rel_permittivity != 1.0
+        case [_, None]:
+            mask = local_conductivity != 0.0
+        case _:
+            mask = xp.logical_or(
+                local_conductivity != 0.0, local_rel_permittivity != 1.0
+            )
+    if perfect_conductor_mask is not None:
+        if mask is None:
+            mask = perfect_conductor_mask
+        else:
+            mask = xp.logical_and(mask, perfect_conductor_mask)
+
+    if mask is not None:
+        material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
+        material_image[mask,:] = xp.asarray(MATERIAL_COLOR)
+        mat_im = pg.ImageItem(
+            material_image,
+            axisOrder="row-major",
+        )
+        mat_im.setRect(0, 0, 400, 400)
+        plot.addItem(mat_im)
+        mat_im.setZValue(10) # put it on top of the other image
+
+
+
 
     im.setColorMap(color_map)
     timer = QtCore.QTimer()  # type: ignore
