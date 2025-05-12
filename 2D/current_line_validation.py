@@ -1,12 +1,13 @@
 import numpy as np
 
 from typing import TYPE_CHECKING
-from yee_FDTD_2D import step_yee, e0, u0, C_VIDE, xp, using_cupy
+from yee_FDTD_2D import simulate_and_plot, e0, u0, C_VIDE, xp, using_cupy
 from simu_elements import sinusoïdal_point_source
 
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+from matplotlib.axes import Axes
 
 
 # parameters
@@ -44,57 +45,15 @@ print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 print("C_VIDE : ", C_VIDE)
 
 
-E = xp.zeros((M, M), dtype=xp.float32)
-B_tilde_x = xp.zeros((M, M), dtype=xp.float32)
-B_tilde_y = xp.zeros((M, M), dtype=xp.float32)
-J = xp.zeros((M, M), dtype=xp.float32)
-
-# compute the electric field after M/2 time steps
-for q in tqdm(range(int(Q))):
-    step_yee(
-        E,
-        B_tilde_x,
-        B_tilde_y,
-        J,
-        q,
-        DELTA_T,
-        DELTA_X,
-        None,
-        current_func,
-        None,
-        None,
-    )
-
-if using_cupy and not TYPE_CHECKING:
-    E = xp.asnumpy(E)
-    B_tilde_x = xp.asnumpy(B_tilde_x)
-    B_tilde_y = xp.asnumpy(B_tilde_y)
-    J = xp.asnumpy(J)
-
 # plot E as an image
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+return_value = plt.subplots(1, 2, figsize=(14, 6))
+fig = return_value[0]
+ax1: Axes = return_value[1][0]
+ax2: Axes = return_value[1][1]
 
-# compute min execpt for the center
-E_copy = np.copy(E)
-E_copy[M // 2, M // 2] = 0
-E_max = np.max(np.abs(E_copy))
+im, E = simulate_and_plot(ax1, DELTA_T, DELTA_X, Q, M, current_func, norm_type="lin")
 
-im = ax1.imshow(
-    E,
-    cmap="berlin",
-    interpolation="nearest",
-    vmin=-E_max,
-    vmax=E_max,
-    origin="lower",
-)
-# plt.colorbar(im, location="left")
-plt.title(
-    f"Electric field E after {M // 2} time steps (t = {DELTA_T * Q:.2e} s)"
-)
-
-
-ax1.set_xticks(np.linspace(0, M, 10), np.round(np.linspace(0, TOTAL_X, 10), 1))
-ax1.set_yticks(np.linspace(0, M, 10), np.round(np.linspace(0, TOTAL_X, 10), 1))
+E_max = np.max(np.abs(E))
 
 ax2.plot(
     np.abs(E[M // 2, :]),

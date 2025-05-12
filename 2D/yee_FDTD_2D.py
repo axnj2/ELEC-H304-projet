@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
+
 
 import numpy as xp
 import numpy as np
@@ -37,6 +38,11 @@ from tqdm import tqdm
 from pyqtgraph.Qt import QtCore
 import pyqtgraph.exporters
 
+from matplotlib.image import AxesImage
+from matplotlib.axes import Axes
+from matplotlib import pyplot as plt
+from matplotlib.colors import LogNorm, Normalize
+
 import os
 
 
@@ -46,7 +52,8 @@ u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / math.sqrt(e0 * u0)  # m/s
 
 # material color
-MATERIAL_COLOR = (92, 20, 122, 255/10) # purple
+MATERIAL_COLOR = (15, 87, 9, 5)  # purple
+
 
 def forward_E(
     E: xp.ndarray,
@@ -285,20 +292,19 @@ def simulate_and_animate(
     """
     # check the norm type
     match norm_type:
-        # TODO : add log and abs lin
         case "log":
             # logarithmic scale from 0 to 1
-            scale = np.logspace(-2, 0, 512)
+            scale = np.logspace(np.log10(min_color_value), 0, 255)
             show_abs = True
             levels = (0, max_color_value)
             color_map_name = "magma"
         case "lin" | "linear":
-            scale = np.linspace(0, 1, 512)
+            scale = np.linspace(0, 1, 255)
             show_abs = False
             levels = (-max_color_value, max_color_value)
             color_map_name = "berlin"
         case "abslin":
-            scale = np.linspace(0, 1, 512)
+            scale = np.linspace(0, 1, 255)
             show_abs = True
             levels = (0, max_color_value)
             color_map_name = "magma"
@@ -341,7 +347,7 @@ def simulate_and_animate(
     # transform the matplotlib colormap to a pyqtgraph colormap
     base_color_map: pg.ColorMap = pg.colormap.get(color_map_name, source="matplotlib")  # type: ignore
 
-    base_color_map_lookuptable = base_color_map.getLookupTable(nPts=512)
+    base_color_map_lookuptable = base_color_map.getLookupTable(nPts=255)
 
     color_map = pg.ColorMap(
         scale, base_color_map_lookuptable, mapping=pg.ColorMap.MIRROR
@@ -367,7 +373,6 @@ def simulate_and_animate(
             local_rel_permittivity = xp.array(local_rel_permittivity)
         if local_conductivity is not None:
             local_conductivity = xp.array(local_conductivity)
-        
 
     def update(image: pg.ImageItem):
         nonlocal q, frames, E, B_tilde_x, B_tilde_y, timer, plot
@@ -482,17 +487,14 @@ def simulate_and_animate(
 
     if mask is not None:
         material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
-        material_image[mask,:] = xp.asarray(MATERIAL_COLOR)
+        material_image[mask, :] = xp.asarray(MATERIAL_COLOR)
         mat_im = pg.ImageItem(
             material_image,
             axisOrder="row-major",
         )
         mat_im.setRect(0, 0, 400, 400)
         plot.addItem(mat_im)
-        mat_im.setZValue(10) # put it on top of the other image
-
-
-
+        mat_im.setZValue(10)  # put it on top of the other image
 
     im.setColorMap(color_map)
     timer = QtCore.QTimer()  # type: ignore
@@ -500,3 +502,139 @@ def simulate_and_animate(
     timer.start(min_time_per_frame)
 
     pg.exec()
+
+
+def simulate_and_plot(
+    ax: Axes,
+    dt: float,
+    dx: float,
+    Q: int,
+    m_max: int,
+    current_func: Callable[[int, xp.ndarray], None] | None,
+    norm_type: str = "log",
+    local_conductivity: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    J0: np.ndarray | None = None,
+    E0: np.ndarray | None = None,
+    B_tilde_x_0: np.ndarray | None = None,
+    B_tilde_y_0: np.ndarray | None = None,
+    use_progress_bar: bool = True,
+    color_bar=True,
+) -> Tuple[AxesImage, np.ndarray]:
+    """
+    Simulate the Yee algorithm and plot the results on the given matplotlib.axes.Axes object.
+
+    Args:
+        dt (float): _description_
+        dx (float): _description_
+        Q (int): _description_
+        m_max (int): _description_
+        current_func (Callable[[int, xp.ndarray], None] | None): _description_
+        norm_type (str, optional): _description_. Defaults to "log".
+        local_conductivity (np.ndarray | None, optional): _description_. Defaults to None.
+        local_rel_permittivity (np.ndarray | None, optional): _description_. Defaults to None.
+        perfect_conductor_mask (np.ndarray | None, optional): _description_. Defaults to None.
+        J0 (np.ndarray | None, optional): _description_. Defaults to None.
+        E0 (np.ndarray | None, optional): _description_. Defaults to None.
+        B_tilde_0 (np.ndarray | None, optional): _description_. Defaults to None.
+        use_progress_bar (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        AxesImage: _description_
+    """
+    # initialize the arrays and move them to the GPU if using cupy
+    E = xp.zeros((m_max, m_max), dtype=xp.float32)
+    B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
+    B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
+    J = xp.zeros((m_max, m_max), dtype=xp.float32)
+    if E0 is not None:
+        E = xp.array(E0.copy())
+    if B_tilde_x_0 is not None:
+        B_tilde_x = xp.array(B_tilde_x_0.copy())
+    if B_tilde_y_0 is not None:
+        B_tilde_y = xp.array(B_tilde_y_0.copy())
+    if J0 is not None:
+        J = xp.array(J0.copy())
+    if local_conductivity is not None:
+        local_conductivity = xp.array(local_conductivity)
+    if local_rel_permittivity is not None:
+        local_rel_permittivity = xp.array(local_rel_permittivity)
+    if perfect_conductor_mask is not None:
+        perfect_conductor_mask = xp.array(perfect_conductor_mask)
+
+    match use_progress_bar:
+        case True:
+            steps = tqdm(range(1, Q), unit="step")
+            steps.set_description("Generating image")
+        case False:
+            steps = range(1, Q)
+
+    # compute the electric field after Q time steps
+    for q in steps:
+        step_yee(
+            E,
+            B_tilde_x,
+            B_tilde_y,
+            J,
+            q,
+            dt,
+            dx,
+            local_rel_permittivity,
+            current_func,
+            perfect_conductor_mask,
+            local_conductivity,
+        )
+
+    if using_cupy and not TYPE_CHECKING:
+        E = xp.asnumpy(E)
+    
+    # check the norm type
+    match norm_type:
+        case "log":
+            norm = LogNorm()
+            show_abs = True
+            color_map_name = "magma"
+        case "abslin":
+            norm = Normalize()
+            show_abs = True
+            color_map_name = "magma"
+        case "lin":
+            max_color_value = np.max(np.abs(E))
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            show_abs = False
+            color_map_name = "berlin"
+        case _:
+            raise ValueError(f"Unknown norm_type: {norm_type}")
+
+    # plot E as an image
+    if show_abs:
+        E_plot = np.abs(E)
+        color_bar_label = "abs(Ez) [V/m]"
+    else:
+        E_plot = E
+        color_bar_label = "Ez [V/m]"
+
+    im = ax.imshow(
+        E_plot,
+        cmap=color_map_name,
+        norm=norm,
+        interpolation="nearest",
+    )
+
+    plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
+
+    ax.set_xticks(
+        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+    )
+    ax.set_yticks(
+        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+    )
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_title(
+        f"Electric field E after {Q} time steps (t = {dt * Q:.2e} s)",
+        fontsize=10,
+    )
+
+    return im, E
