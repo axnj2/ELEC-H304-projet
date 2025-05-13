@@ -11,9 +11,16 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-M = 3000  # number of space samples
+TOTAL_X = 25  # in meters
 FREQ_REF = 1e8  # Hz
-Q = 10000  # number of time samples
+Q = 20000  # number of time samples
+COND_START = 2  # in meters
+COND_END = 8  # in meters
+CONDUCTIVITY = 0.003  # in S/mµ
+DIEL_START = 25-8  # in meters
+DIEL_END = 25-2  # in meters
+DEIL__REL_PERMITTIVITY = 4
+SOURCE_POS = 12.5  # in meters
 
 
 # Constants
@@ -21,25 +28,31 @@ e0 = 8.8541878188e-12  # F/m
 u0 = 1.25663706127e-6  # H/m
 c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
-# set the local relative permittivity array
-epsilon_r = np.ones((M))
-# epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
 
-# set the local conductivity array
-sigma = np.zeros((M))
-start_cond = 100
-end_cond = 900
-sigma[start_cond:end_cond] = 0.003
-
-# slowest speed in the medium
-c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
 # derived parameters
-DELTA_X = c_slowest / (FREQ_REF * 400)  # in meters
+DELTA_X = c_vide / (FREQ_REF * 400)  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * 400)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
+M = round(TOTAL_X / DELTA_X)  # number of space samples
 
-TOTAL_X = (M - 1) * DELTA_X  # in meters
+# set the local relative permittivity array
+epsilon_r = np.ones((M))
+start_diel = round(DIEL_START / DELTA_X)
+end_diel = round(DIEL_END / DELTA_X)
+epsilon_r[start_diel:end_diel] = DEIL__REL_PERMITTIVITY
+print(f"start_diel : {start_diel}, end_diel : {end_diel}, M : {M}")
+# slowest speed in the medium
+c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
+
+
+# set the local conductivity array
+sigma = np.zeros((M))
+
+start_cond = round(COND_START / DELTA_X)
+end_cond = round(COND_END / DELTA_X)
+sigma[start_cond:end_cond] = CONDUCTIVITY
+
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
 print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
@@ -63,7 +76,7 @@ J_source = np.zeros((Q, M))
 
 # set a sinusoidal current at the middle of the grid
 fraction_on = 1
-J_source[0 : int(Q * fraction_on), round(M / 2)] = (
+J_source[0 : int(Q * fraction_on), round(SOURCE_POS / DELTA_X)] = (
     0.01
     / DELTA_X  # insures that the total current is constant
     * np.sin(
@@ -151,6 +164,13 @@ ax1.axvspan(
     color="gray",
     alpha=0.5,
 )
+ax1.axvspan(
+    DIEL_START - TOTAL_X / 2,
+    DIEL_END - TOTAL_X / 2,
+    color="blue",
+    alpha=0.5,
+    label="dielectric",
+)
 
 frame_devider = 1
 
@@ -182,11 +202,11 @@ print(
 )
 
 ax1.plot(x, np.max(np.abs(E[-steps_per_half_period:,:]), axis = 0), label="Amplitude Ez", color="red")
-plt.legend(loc="lower right")
+
 
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
-
-plt.savefig("images/1D_sine_source_local_conductivity.png", dpi=300, bbox_inches="tight")
+plt.legend(loc="lower left")
+plt.savefig("images/1D_sine_source_a_bit_of_everything.png", dpi=300, bbox_inches="tight")
 
 plt.show()
