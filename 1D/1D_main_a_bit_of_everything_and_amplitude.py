@@ -17,8 +17,8 @@ Q = 20000  # number of time samples
 COND_START = 2  # in meters
 COND_END = 8  # in meters
 CONDUCTIVITY = 0.003  # in S/mµ
-DIEL_START = 25-8  # in meters
-DIEL_END = 25-2  # in meters
+DIEL_START = 25 - 8  # in meters
+DIEL_END = 25 - 2  # in meters
 DEIL__REL_PERMITTIVITY = 4
 SOURCE_POS = 12.5  # in meters
 
@@ -142,14 +142,16 @@ main()
 # %%
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
 fig, (ax1) = plt.subplots()
-ax1 : Axes = ax1
+ax1: Axes = ax1
 
 
-x = np.linspace(0, TOTAL_X, M) - TOTAL_X/2
+x = np.linspace(0, TOTAL_X, M) - TOTAL_X / 2
 ax1.set_xlim(np.min(x), np.max(x))
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("E (V/m)")
-ax1.set_title(f"Electric field E at {FREQ_REF:.0e} Hz through a slightly conductive medium")
+ax1.set_title(
+    f"Electric field E at {FREQ_REF:.0e} Hz through a slightly conductive medium"
+)
 ax1.tick_params(axis="y", labelcolor="b")
 (lineE,) = plt.plot(x, E[0], label="0 s", color="b")
 (lineJ,) = plt.plot(x, J_source[0], label="0 s", color="g")
@@ -188,25 +190,29 @@ def updatefig(i: int):
 #     fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
 # )
 
-updatefig(Q-1)
+updatefig(Q - 1)
 
-steps_per_half_period = int(
-    1 / (2*FREQ_REF * DELTA_T)
-)
+steps_per_half_period = int(1 / (2 * FREQ_REF * DELTA_T))
 
 print(
     "steps_per_half_period : ",
     steps_per_half_period,
     "approx : ",
-    1 / (2*FREQ_REF * DELTA_T),
+    1 / (2 * FREQ_REF * DELTA_T),
 )
 
-ax1.plot(x, np.max(np.abs(E[-steps_per_half_period:,:]), axis = 0), label="Amplitude Ez", color="red")
-
+ax1.plot(
+    x,
+    np.max(np.abs(E[-steps_per_half_period:, :]), axis=0),
+    label="Amplitude Ez",
+    color="red",
+)
 
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 plt.legend(loc="lower left")
-plt.savefig("images/1D_sine_source_a_bit_of_everything.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    "images/1D_sine_source_a_bit_of_everything.png", dpi=300, bbox_inches="tight"
+)
 
 plt.show()
