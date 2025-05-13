@@ -434,7 +434,6 @@ def simulate_and_animate(
             dx,
             show_from,
             m_max,
-            current_func_hash=None,
             current_func=current_func,
             local_conductivity=local_conductivity,
             local_rel_permittivity=local_rel_permittivity,
@@ -607,7 +606,6 @@ def simulate_and_plot(
     use_progress_bar: bool = True,
     color_bar=True,
     min_color_value: float | None = None,
-    current_func_hash: str | None = None,
     show_edges_of_materials: bool = True,
     show_material: bool = True,
 ) -> Tuple[AxesImage, np.ndarray]:
@@ -632,12 +630,11 @@ def simulate_and_plot(
     Returns:
         AxesImage: _description_
     """
-    E, B_tilde_x, B_tilde_y = simulate_up_to(
+    E_z, _, _ = simulate_up_to(
         dt,
         dx,
         Q,
         m_max,
-        current_func_hash,
         current_func,
         local_conductivity,
         local_rel_permittivity,
@@ -650,60 +647,13 @@ def simulate_and_plot(
     )
 
     if using_cupy and not TYPE_CHECKING:
-        E = xp.asnumpy(E)
-
-    # check the norm type
-    match norm_type:
-        case "log":
-            norm = LogNorm(vmin=min_color_value)
-            show_abs = True
-            color_map_name = "magma"
-        case "abslin":
-            norm = Normalize(vmin=min_color_value)
-            show_abs = True
-            color_map_name = "magma"
-        case "lin":
-            max_color_value = np.max(np.abs(E))
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
-            show_abs = False
-            color_map_name = "berlin"
-        case _:
-            raise ValueError(f"Unknown norm_type: {norm_type}")
-
-    # plot E as an image
-    if show_abs:
-        E_plot = np.abs(E)
-        color_bar_label = "abs(Ez) [V/m]"
-    else:
-        E_plot = E
-        color_bar_label = "Ez [V/m]"
-
-    im = ax.imshow(
-        E_plot,
-        cmap=color_map_name,
-        norm=norm,
-        interpolation="nearest",
-    )
-    if color_bar:
-        plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
-
-    ax.set_xticks(
-        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
-    )
-    ax.set_yticks(
-        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
-    )
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
-    ax.set_title(
-        f"Electric field E after {Q} time steps (t = {dt * Q:.2e} s)",
-        fontsize=10,
-    )
+        E_z = xp.asnumpy(E_z)
 
     mask = get_material_mask(
         local_conductivity, local_rel_permittivity, perfect_conductor_mask
     )
 
+    material_image = None
     if mask is not None and show_material:
         if show_edges_of_materials:
             mask = get_material_edges_from_mask(mask)
@@ -712,11 +662,19 @@ def simulate_and_plot(
             mat_color = MATERIAL_COLOR_FULL
         material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
         material_image[mask, :] = np.asarray(mat_color)
-        ax.imshow(
-            material_image,
-        )
 
-    return im, E
+    im = plot_field(
+        ax,
+        dt,
+        dx,
+        E_z,
+        image_overlay=material_image,
+        min_color_value=min_color_value,
+        norm_type=norm_type,
+        color_bar=color_bar,
+    )
+
+    return im, E_z
 
 
 def simulate_up_to(
@@ -724,7 +682,6 @@ def simulate_up_to(
     dx: float,
     Q: int,
     m_max: int,
-    current_func_hash: str | None,
     current_func: Callable[[int, xp.ndarray], None] | None,
     local_conductivity: np.ndarray | None = None,
     local_rel_permittivity: np.ndarray | None = None,
@@ -734,6 +691,7 @@ def simulate_up_to(
     B_tilde_x_0: np.ndarray | None = None,
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
+    return_numpy: bool = False,
 ) -> Tuple[xp.ndarray, xp.ndarray, xp.ndarray]:
     """
     Simulate the Yee algorithm and return the electric field E after Q time steps.
@@ -761,18 +719,13 @@ def simulate_up_to(
     file_name = None
     hasher = xxhash.xxh32()
 
-    if current_func_hash is not None:
-        hasher.update(str(current_func_hash).encode("utf-8"))
-    else:
-        if current_func is not None:
-            # generate 5 steps of the current function to get a hash
-            J = xp.zeros((m_max, m_max), dtype=np.float32)
-            for q in range(5):
-                current_func(q, J)
-                hasher.update(J.tobytes())
-        else:
-            pass
-    
+    if current_func is not None:
+        # generate 5 steps of the current function to get a hash
+        J = xp.zeros((m_max, m_max), dtype=np.float32)
+        for q in range(5):
+            current_func(q, J)
+            hasher.update(J.tobytes())
+
 
     start_time = time.perf_counter()
     # add all the parameters to the hash
@@ -900,6 +853,143 @@ def simulate_up_to(
         file_size_mb = file_size / (1024 * 1024)
         print(f"Saved arrays to {file_name} using {file_size_mb:.2f} MB")
 
+    if using_cupy and not TYPE_CHECKING and not return_numpy:
+        # convert the arrays back to cupy arrays
+        E = xp.array(E)
+        B_tilde_x = xp.array(B_tilde_x)
+        B_tilde_y = xp.array(B_tilde_y)
+    else:
+        # convert the arrays to numpy arrays
+        # might not work to be tested
+        E = np.array(E)
+        B_tilde_x = np.array(B_tilde_x)
+        B_tilde_y = np.array(B_tilde_y)
+
     return E, B_tilde_x, B_tilde_y
 
 
+def compute_electric_field_amplitude(
+    dt: float,
+    dx: float,
+    Q: int,
+    m_max: int,
+    period: float,
+    current_func: Callable[[int, xp.ndarray], None] | None,
+    local_conductivity: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    J0: np.ndarray | None = None,
+    E0: np.ndarray | None = None,
+    B_tilde_x_0: np.ndarray | None = None,
+    B_tilde_y_0: np.ndarray | None = None,
+    use_progress_bar: bool = True,
+) -> np.ndarray:
+    """Compute the electric field amplitude from the electric field in the z direction.
+
+    Returns:
+        np.ndarray: Electric field amplitude
+    """
+    E_z, B_tilde_x, B_tilde_y = simulate_up_to(
+        dt,
+        dx,
+        Q,
+        m_max,
+        current_func,
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        J0,
+        E0,
+        B_tilde_x_0,
+        B_tilde_y_0,
+        use_progress_bar=use_progress_bar,
+    )
+
+    J_z = xp.zeros((m_max, m_max), dtype=np.float32)
+
+    num_steps = math.ceil(period/(2 * dt))
+    E_amplitude = xp.zeros((m_max, m_max), dtype=np.float32)
+    for i in tqdm(range(num_steps), unit="step"):
+        step_yee(
+            E_z,
+            B_tilde_x,
+            B_tilde_y,
+            J_z,
+            i + Q,
+            dt,
+            dx,
+            local_rel_permittivity,
+            current_func,
+            perfect_conductor_mask,
+            local_conductivity,
+        )
+        E_amplitude = xp.maximum(E_amplitude, xp.abs(E_z))
+    
+    if using_cupy and not TYPE_CHECKING:
+        E_amplitude = xp.asnumpy(E_amplitude)
+    
+    return E_amplitude
+
+def plot_field(
+        ax: Axes,
+        dt: float,
+        dx: float,
+        field: np.ndarray,
+        image_overlay: np.ndarray | None = None,
+        min_color_value: float | None = 0.1,
+        norm_type: str = "log",
+        color_bar: bool = True,
+) -> AxesImage :
+    
+    # check the norm type
+    match norm_type:
+        case "log":
+            norm = LogNorm(vmin=min_color_value)
+            show_abs = True
+            color_map_name = "magma"
+        case "abslin":
+            norm = Normalize(vmin=min_color_value)
+            show_abs = True
+            color_map_name = "magma"
+        case "lin":
+            max_color_value = np.max(np.abs(E))
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            show_abs = False
+            color_map_name = "berlin"
+        case _:
+            raise ValueError(f"Unknown norm_type: {norm_type}")
+
+    # plot E as an image
+    if show_abs:
+        field_plot = np.abs(field)
+        color_bar_label = "abs(Ez) [V/m]"
+    else:
+        field_plot = field
+        color_bar_label = "Ez [V/m]"
+
+    im = ax.imshow(
+        field_plot,
+        cmap=color_map_name,
+        norm=norm,
+        interpolation="nearest",
+    )
+    if color_bar:
+        plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
+
+    m_max = field.shape[0]
+    ax.set_xticks(
+        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+    )
+    ax.set_yticks(
+        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+    )
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    
+
+    if image_overlay is not None:
+        ax.imshow(
+            image_overlay,
+        )
+
+    return im
