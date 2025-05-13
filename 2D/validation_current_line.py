@@ -54,7 +54,7 @@ print("C_VIDE : ", C_VIDE)
 
 
 # plot E as an image
-return_value = plt.subplots(1, 2, figsize=(14, 6))
+return_value = plt.subplots(1, 2, figsize=(15, 6))
 fig = return_value[0]
 ax1: Axes = return_value[1][0]
 ax2: Axes = return_value[1][1]
@@ -77,6 +77,8 @@ im = plot_field(
     min_color_value=0.1,
 )
 
+ax1.set_title(f"Electric field Ez amplitude at t = {DELTA_T * Q:.1e} s")
+
 E_max = np.max(np.abs(E_amplitude))
 
 ax2.plot(
@@ -86,7 +88,7 @@ ax2.plot(
 )
 ax2.set_ylabel("r (m)")
 ax2.set_xlabel("|Ez| (V/m)")
-ax2.set_title(f"Electric field E at t = {DELTA_T * Q:.2e} s")
+ax2.set_title(f"Electric field Ez at t = {DELTA_T * Q:.1e} s")
 
 # add the theoritical value
 Z_0 = np.sqrt(u0 / e0)
