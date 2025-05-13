@@ -3,6 +3,7 @@
 # to simulate electromagnetic waves.
 
 
+from matplotlib.axes import Axes
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -10,9 +11,9 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-M = 100  # number of space samples
+M = 1000  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 500  # number of time samples
+Q = 3000  # number of time samples
 
 
 # Constants
@@ -26,13 +27,13 @@ epsilon_r = np.ones((M))
 
 # set the local conductivity array
 sigma = np.zeros((M))
-# sigma[300:320] = 0.01
+sigma[300:320] = 0.01
 
 # slowest speed in the medium
 c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
 # derived parameters
-DELTA_X = c_slowest / (FREQ_REF * 20)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+DELTA_X = c_slowest / (FREQ_REF * 40)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 
@@ -125,7 +126,8 @@ main()
 
 # %%
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
-fig, ax1 = plt.subplots()
+fig, (ax1) = plt.subplots()
+ax1 : Axes = ax1
 ax1.set_xlim(0, TOTAL_X)
 
 x = np.linspace(0, TOTAL_X, M)
@@ -160,8 +162,17 @@ def updatefig(i: int):
 
 
 ani = animation.FuncAnimation(
-    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=30
+    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
 )
+
+steps_per_period = int(
+    1 / (FREQ_REF * DELTA_T)
+)
+
+print("steps_per_period : ", steps_per_period, "approx : ", 1 / (FREQ_REF * DELTA_T))
+
+ax1.plot(x, np.max(E[-steps_per_period:,:], axis = 0))
+
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 
