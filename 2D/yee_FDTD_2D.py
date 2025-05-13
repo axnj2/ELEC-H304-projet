@@ -43,6 +43,9 @@ from matplotlib.axes import Axes
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm, Normalize
 
+from scipy.ndimage import convolve
+
+
 import os
 import xxhash
 import time
@@ -54,7 +57,8 @@ u0: float = 1.25663706127e-6  # H/m
 C_VIDE: float = 1 / math.sqrt(e0 * u0)  # m/s
 
 # material color
-MATERIAL_COLOR = (15, 87, 9, 5)  # purple
+MATERIAL_COLOR_FULL = (87, 87, 87, 100)  # purple
+MATERIAL_COLOR_EDGE = (0, 255, 0, 255)  # red
 
 
 def forward_E(
@@ -214,7 +218,7 @@ def get_material_mask(
     local_conductivity, local_rel_permittivity, perfect_conductor_mask
 ) -> np.ndarray | None:
     # show the obstacles based on the local relative permittivity or conductivity
-    # create a yellow transparrent image where the local relative permittivity is not 1 and or the local conductivity is not 0
+    # returns a mask indicating where the local relative permittivity is not 1 and or the local conductivity is not 0
     match [local_conductivity, local_rel_permittivity]:
         case [None, None]:
             mask = None
@@ -232,6 +236,40 @@ def get_material_mask(
         else:
             mask = np.logical_and(mask, perfect_conductor_mask)
     return mask
+
+
+def get_material_edges(
+    local_conductivity, local_rel_permittivity, perfect_conductor_mask
+) -> np.ndarray | None:
+    # show the obstacles edges based on the local relative permittivity or conductivity
+
+    mask = get_material_mask(
+        local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    )
+    return get_material_edges_from_mask(mask)
+
+
+def get_material_edges_from_mask(mask: np.ndarray | None) -> np.ndarray | None:
+    # show the obstacles edges based on the local relative permittivity or conductivity
+
+    if mask is not None:
+        # get the edges of the mask
+        edges = np.zeros_like(mask, dtype=np.uint8)
+        # use convolution to get the edges
+        kernel = np.array(
+            [
+                [0, -1, 0],
+                [-1, 4, -1],
+                [0, -1, 0],
+            ],
+            dtype=np.int8,
+        )
+        edges = convolve(mask.astype(np.int8), kernel, mode="constant", cval=0)
+        edges = edges > 0
+
+        return edges
+    else:
+        return None
 
 
 def simulate_and_animate(
@@ -257,6 +295,7 @@ def simulate_and_animate(
     loop_animation: bool | None = None,
     show_from: int = 0,
     theme: str = "w",
+    show_edges_of_materials: bool = True,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -497,8 +536,13 @@ def simulate_and_animate(
     )
 
     if mask is not None:
+        if show_edges_of_materials:
+            mask = get_material_edges_from_mask(mask)
+            mat_color = MATERIAL_COLOR_EDGE
+        else:
+            mat_color = MATERIAL_COLOR_FULL
         material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
-        material_image[mask, :] = xp.asarray(MATERIAL_COLOR)
+        material_image[mask, :] = xp.asarray(mat_color)
         mat_im = pg.ImageItem(
             material_image,
             axisOrder="row-major",
@@ -534,6 +578,7 @@ def simulate_and_plot(
     color_bar=True,
     min_color_value: float | None = None,
     current_func_hash: str | None = None,
+    show_edges_of_materials: bool = True,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
     Simulate the Yee algorithm and plot the results on the given matplotlib.axes.Axes object.
@@ -693,9 +738,14 @@ def simulate_and_plot(
     )
 
     if mask is not None:
+        if show_edges_of_materials:
+            mask = get_material_edges_from_mask(mask)
+            mat_color = MATERIAL_COLOR_EDGE
+        else:
+            mat_color = MATERIAL_COLOR_FULL
         material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
-        material_image[mask, :] = xp.asarray(MATERIAL_COLOR)
-        mat_im = ax.imshow(
+        material_image[mask, :] = xp.asarray(mat_color)
+        ax.imshow(
             material_image,
         )
 
