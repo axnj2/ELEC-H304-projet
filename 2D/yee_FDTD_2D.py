@@ -282,6 +282,7 @@ def simulate_and_animate(
     q_max: int,
     m_max: int,
     current_func: Callable[[int, xp.ndarray], None] | None = None,
+    current_func_hash: str | None = None,
     J0: xp.ndarray | None = None,
     local_conductivity: xp.ndarray | None = None,
     perfect_conductor_mask: xp.ndarray | None = None,
@@ -296,6 +297,7 @@ def simulate_and_animate(
     show_from: int = 0,
     theme: str = "w",
     show_edges_of_materials: bool = True,
+    show_material: bool = True,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -376,15 +378,6 @@ def simulate_and_animate(
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
-    match use_progress_bar:
-        case True:
-            temp = tqdm(range(1, q_max // step_per_frame), unit="f")
-            temp.set_description("Generating image")
-            frames = temp.__iter__()
-        case False:
-            temp = range(1, q_max // step_per_frame)
-            frames = temp.__iter__()
-
     match theme:
         case "black" | "b":
             pass
@@ -420,10 +413,41 @@ def simulate_and_animate(
 
     def init():
         # initialise the arrays (only one instance saved, they will be updated in place)
-        E[:, :] = xp.array(copy.deepcopy(E0))
-        B_tilde_x[:, :] = xp.array(copy.deepcopy(B_tilde_0))
-        B_tilde_y[:, :] = xp.array(copy.deepcopy(B_tilde_0))
-        J[:, :] = xp.array(copy.deepcopy(J0))
+        if show_from == 0:
+            E[:, :] = xp.array(copy.deepcopy(E0))
+            B_tilde_x[:, :] = xp.array(copy.deepcopy(B_tilde_0))
+            B_tilde_y[:, :] = xp.array(copy.deepcopy(B_tilde_0))
+        else:
+            E[:, :] = xp.array(copy.deepcopy(E_ini))
+            B_tilde_x[:, :] = xp.array(copy.deepcopy(B_tilde_x_ini))
+            B_tilde_y[:, :] = xp.array(copy.deepcopy(B_tilde_y_ini))
+
+    if show_from > 0:
+        E_ini, B_tilde_x_ini, B_tilde_y_ini = simulate_up_to(
+            dt,
+            dx,
+            show_from,
+            m_max,
+            current_func_hash=None,
+            current_func=current_func,
+            local_conductivity=local_conductivity,
+            local_rel_permittivity=local_rel_permittivity,
+            perfect_conductor_mask=perfect_conductor_mask,
+            J0=J0,
+            E0=E0,
+            B_tilde_x_0=B_tilde_0,
+            B_tilde_y_0=B_tilde_0,
+        )
+    
+    # created here to not interfere with the things printed by simulate_up_to
+    match use_progress_bar:
+        case True:
+            temp = tqdm(range(show_from, q_max, step_per_frame), unit="f")
+            temp.set_description("Generating image")
+            frames = temp.__iter__()
+        case False:
+            temp = range(show_from, q_max, step_per_frame)
+            frames = temp.__iter__()
 
     # allocate the arrays
     E: xp.ndarray = xp.zeros((m_max, m_max), dtype=xp.float32)
@@ -431,6 +455,7 @@ def simulate_and_animate(
     B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
     J = xp.zeros((m_max, m_max), dtype=xp.float32)
     q = 0
+    init()
 
     if using_cupy:
         # allocate the material arrays on the GPU
@@ -471,25 +496,24 @@ def simulate_and_animate(
 
         plot.setTitle(f"Electric field in the z direction at time {q * dt:.2e} s")
 
-        if q >= show_from:
-            if show_abs:
-                image.setImage(
-                    xp.abs(E),
-                    autoLevels=False,
-                    autoRange=False,
-                )
-            else:
-                image.setImage(
-                    E,
-                    autoLevels=False,
-                    autoRange=False,
-                )
+        if show_abs:
+            image.setImage(
+                xp.abs(E),
+                autoLevels=False,
+                autoRange=False,
+            )
+        else:
+            image.setImage(
+                E,
+                autoLevels=False,
+                autoRange=False,
+            )
 
-            if file_name is not None:
-                # save the image to a file
-                pyqtgraph.exporters.ImageExporter(plot).export(
-                    os.path.join("temp", f"frame_{q}.png")
-                )
+        if file_name is not None:
+            # save the image to a file
+            pyqtgraph.exporters.ImageExporter(plot).export(
+                os.path.join("temp", f"frame_{q}.png")
+            )
 
     # initialise plotting
     pyqtgraph.setConfigOptions(useCupy=using_cupy)
@@ -535,7 +559,7 @@ def simulate_and_animate(
         local_conductivity, local_rel_permittivity, perfect_conductor_mask
     )
 
-    if mask is not None:
+    if mask is not None and show_material:
         if show_edges_of_materials:
             mask = get_material_edges_from_mask(mask)
             mat_color = MATERIAL_COLOR_EDGE
@@ -579,6 +603,7 @@ def simulate_and_plot(
     min_color_value: float | None = None,
     current_func_hash: str | None = None,
     show_edges_of_materials: bool = True,
+    show_material: bool = True,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
     Simulate the Yee algorithm and plot the results on the given matplotlib.axes.Axes object.
@@ -601,89 +626,25 @@ def simulate_and_plot(
     Returns:
         AxesImage: _description_
     """
-    # set the python hash function seed
-    file_name = None
-    if current_func_hash is not None:
-        hasher = xxhash.xxh32()
+    E, B_tilde_x, B_tilde_y = simulate_up_to(
+        dt,
+        dx,
+        Q,
+        m_max,
+        current_func_hash,
+        current_func,
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        J0,
+        E0,
+        B_tilde_x_0,
+        B_tilde_y_0,
+        use_progress_bar=use_progress_bar,
+    )
 
-        start_time = time.perf_counter()
-        # add all the parameters to the hash
-        hasher.update(str(dt).encode("utf-8"))
-        hasher.update(str(dx).encode("utf-8"))
-        hasher.update(str(m_max).encode("utf-8"))
-        hasher.update(str(current_func_hash).encode("utf-8"))
-        if local_conductivity is not None:
-            hasher.update(local_conductivity.tobytes())
-        if local_rel_permittivity is not None:
-            hasher.update(local_rel_permittivity.tobytes())
-        if perfect_conductor_mask is not None:
-            hasher.update(perfect_conductor_mask.tobytes())
-        if J0 is not None:
-            hasher.update(J0.tobytes())
-        if E0 is not None:
-            hasher.update(E0.tobytes())
-        if B_tilde_x_0 is not None:
-            hasher.update(B_tilde_x_0.tobytes())
-        if B_tilde_y_0 is not None:
-            hasher.update(B_tilde_y_0.tobytes())
-        parameters_hash = hasher.hexdigest()
-        end_time = time.perf_counter()
-        print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
-        hasher.reset()
-        print(f"Hash of the parameters: {parameters_hash}")
-        file_name = f"temp/simulate_and_plot_{parameters_hash}_{Q}.npy"
-
-    file_already_cached = False
-    if file_name is not None and os.path.exists(file_name):
-        E = np.load(file_name)
-        print(f"Loaded E from {file_name}")
-        file_already_cached = True
-    else:
-        # initialize the arrays and move them to the GPU if using cupy
-        E = xp.zeros((m_max, m_max), dtype=xp.float32)
-        B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
-        B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
-        J = xp.zeros((m_max, m_max), dtype=xp.float32)
-        if E0 is not None:
-            E = xp.array(E0.copy())
-        if B_tilde_x_0 is not None:
-            B_tilde_x = xp.array(B_tilde_x_0.copy())
-        if B_tilde_y_0 is not None:
-            B_tilde_y = xp.array(B_tilde_y_0.copy())
-        if J0 is not None:
-            J = xp.array(J0.copy())
-        if local_conductivity is not None:
-            local_conductivity = xp.array(local_conductivity)
-        if local_rel_permittivity is not None:
-            local_rel_permittivity = xp.array(local_rel_permittivity)
-        if perfect_conductor_mask is not None:
-            perfect_conductor_mask = xp.array(perfect_conductor_mask)
-
-        match use_progress_bar:
-            case True:
-                steps = tqdm(range(1, Q), unit="step")
-                steps.set_description("Generating image")
-            case False:
-                steps = range(1, Q)
-
-        # compute the electric field after Q time steps
-        for q in steps:
-            step_yee(
-                E,
-                B_tilde_x,
-                B_tilde_y,
-                J,
-                q,
-                dt,
-                dx,
-                local_rel_permittivity,
-                current_func,
-                perfect_conductor_mask,
-                local_conductivity,
-            )
-
-        if using_cupy and not TYPE_CHECKING:
-            E = xp.asnumpy(E)
+    if using_cupy and not TYPE_CHECKING:
+        E = xp.asnumpy(E)
 
     # check the norm type
     match norm_type:
@@ -717,8 +678,8 @@ def simulate_and_plot(
         norm=norm,
         interpolation="nearest",
     )
-
-    plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
+    if color_bar:
+        plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
 
     ax.set_xticks(
         np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
@@ -737,7 +698,7 @@ def simulate_and_plot(
         local_conductivity, local_rel_permittivity, perfect_conductor_mask
     )
 
-    if mask is not None:
+    if mask is not None and show_material:
         if show_edges_of_materials:
             mask = get_material_edges_from_mask(mask)
             mat_color = MATERIAL_COLOR_EDGE
@@ -749,12 +710,185 @@ def simulate_and_plot(
             material_image,
         )
 
+    return im, E
+
+
+def simulate_up_to(
+    dt: float,
+    dx: float,
+    Q: int,
+    m_max: int,
+    current_func_hash: str | None,
+    current_func: Callable[[int, xp.ndarray], None] | None,
+    local_conductivity: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    J0: np.ndarray | None = None,
+    E0: np.ndarray | None = None,
+    B_tilde_x_0: np.ndarray | None = None,
+    B_tilde_y_0: np.ndarray | None = None,
+    use_progress_bar: bool = True,
+) -> Tuple[xp.ndarray, xp.ndarray, xp.ndarray]:
+    """
+    Simulate the Yee algorithm and return the electric field E after Q time steps.
+
+    Args:
+        dt (float): _description_
+        dx (float): _description_
+        Q (int): _description_
+        m_max (int): _description_
+        current_func_hash (str | None): _description_
+        current_func (Callable[[int, xp.ndarray], None] | None): _description_
+        local_conductivity (np.ndarray | None, optional): _description_. Defaults to None.
+        local_rel_permittivity (np.ndarray | None, optional): _description_. Defaults to None.
+        perfect_conductor_mask (np.ndarray | None, optional): _description_. Defaults to None.
+        J0 (np.ndarray | None, optional): _description_. Defaults to None.
+        E0 (np.ndarray | None, optional): _description_. Defaults to None.
+        B_tilde_0 (np.ndarray | None, optional): _description_. Defaults to None.
+        use_progress_bar (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        Tuple[xp.ndarray, xp.ndarray, xp.ndarray]: Electric field E after Q time steps
+    """
+
+    # set the python hash function seed
+    file_name = None
+    hasher = xxhash.xxh32()
+
+    if current_func_hash is not None:
+        hasher.update(str(current_func_hash).encode("utf-8"))
+    else:
+        if current_func is not None:
+            # generate 5 steps of the current function to get a hash
+            J = xp.zeros((m_max, m_max), dtype=np.float32)
+            for q in range(5):
+                current_func(q, J)
+                hasher.update(J.tobytes())
+        else:
+            pass
+    
+
+    start_time = time.perf_counter()
+    # add all the parameters to the hash
+    hasher.update(str(dt).encode("utf-8"))
+    hasher.update(str(dx).encode("utf-8"))
+    hasher.update(str(m_max).encode("utf-8"))
+    
+    if local_conductivity is not None:
+        hasher.update(local_conductivity.tobytes())
+    if local_rel_permittivity is not None:
+        hasher.update(local_rel_permittivity.tobytes())
+    if perfect_conductor_mask is not None:
+        hasher.update(perfect_conductor_mask.tobytes())
+    if J0 is not None:
+        hasher.update(J0.tobytes())
+    if E0 is not None:
+        hasher.update(E0.tobytes())
+    if B_tilde_x_0 is not None:
+        hasher.update(B_tilde_x_0.tobytes())
+    if B_tilde_y_0 is not None:
+        hasher.update(B_tilde_y_0.tobytes())
+    parameters_hash = hasher.hexdigest()
+    end_time = time.perf_counter()
+    print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
+    hasher.reset()
+    print(f"Hash of the parameters: {parameters_hash}")
+    file_name = f"temp/simulate_{parameters_hash}_{Q}.npz"
+
+    file_already_cached = False
+
+
+    if file_name is not None and os.path.exists(file_name):
+        loaded = np.load(file_name)
+        E = loaded["E"]
+        B_tilde_x = loaded["B_tilde_x"]
+        B_tilde_y = loaded["B_tilde_y"]
+        print(f"Loaded arrays from {file_name}")
+        file_already_cached = True
+    else:
+        # try to load a previous step of the same simulation
+        # find file name that match the pattern simulate_<hash>_<Q>.npz
+        # and has a Q smaller than the current Q
+        # get the list of files in the temp directory
+        files = os.listdir("temp")
+        # filter the files to keep only the ones that match the pattern
+        files = [
+            f for f in files if f.startswith(f"simulate_{parameters_hash}_") and f.endswith(".npz")
+        ]
+        # sort the files by Q
+        files = sorted(
+            files,
+            key=lambda f: int(f.split("_")[-1].split(".")[0]),
+            reverse=True,
+        )
+        # find the first file that has a Q smaller than the current Q
+        loaded_Q = 0
+        for f in files:
+            loaded_Q = int(f.split("_")[-1].split(".")[0])
+            if loaded_Q < Q:
+                # load the file
+                loaded = np.load(os.path.join("temp", f))
+                E0 = loaded["E"]
+                B_tilde_x_0 = loaded["B_tilde_x"]
+                B_tilde_y_0 = loaded["B_tilde_y"]
+                print(f"Loaded intermediary step's arrays from {f}")
+                break
+
+
+        # initialize the arrays and move them to the GPU if using cupy
+        E = xp.zeros((m_max, m_max), dtype=xp.float32)
+        B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
+        B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
+        J = xp.zeros((m_max, m_max), dtype=xp.float32)
+        if E0 is not None:
+            E = xp.array(E0.copy())
+        if B_tilde_x_0 is not None:
+            B_tilde_x = xp.array(B_tilde_x_0.copy())
+        if B_tilde_y_0 is not None:
+            B_tilde_y = xp.array(B_tilde_y_0.copy())
+
+
+
+        if local_conductivity is not None:
+            local_conductivity = xp.array(local_conductivity)
+        if local_rel_permittivity is not None:
+            local_rel_permittivity = xp.array(local_rel_permittivity)
+        if perfect_conductor_mask is not None:
+            perfect_conductor_mask = xp.array(perfect_conductor_mask)
+
+        match use_progress_bar:
+            case True:
+                steps = tqdm(range(loaded_Q, Q), unit="step")
+                steps.set_description("Generating image")
+            case False:
+                steps = range(loaded_Q, Q)
+
+        # compute the electric field after Q time steps
+        for q in steps:
+            step_yee(
+                E,
+                B_tilde_x,
+                B_tilde_y,
+                J,
+                q,
+                dt,
+                dx,
+                local_rel_permittivity,
+                current_func,
+                perfect_conductor_mask,
+                local_conductivity,
+            )
+
     # save the electric field to a file with a hash of the parameters as the name
     if not file_already_cached and file_name is not None:
-        np.save(file_name, E)
+        if using_cupy and not TYPE_CHECKING:
+            E = xp.asnumpy(E)
+            B_tilde_x = xp.asnumpy(B_tilde_x)
+            B_tilde_y = xp.asnumpy(B_tilde_y)
+        np.savez_compressed(file_name, E=E, B_tilde_x=B_tilde_x, B_tilde_y=B_tilde_y)
         # compute the file size
         file_size = os.path.getsize(file_name)
         file_size_mb = file_size / (1024 * 1024)
-        print(f"Saved E to {file_name} using {file_size_mb:.2f} MB")
+        print(f"Saved arrays to {file_name} using {file_size_mb:.2f} MB")
 
-    return im, E
+    return E, B_tilde_x, B_tilde_y
