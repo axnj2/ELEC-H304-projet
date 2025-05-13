@@ -11,35 +11,50 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-M = 1000  # number of space samples
-FREQ_REF = 1e8  # Hz
-Q = 3000  # number of time samples
+TOTAL_X = 4  # in meters
+GAUSSIAN_TIME_WIDTH = 1e-9  # in seconds
+Q = 10000  # number of time samples
+COND_START = 2  # in meters
+COND_END = 8  # in meters
+CONDUCTIVITY = 0  # in S/mµ
+DIEL_START = 25 - 8  # in meters
+DIEL_END = 25 - 2  # in meters
+DEIL__REL_PERMITTIVITY = 1
+SOURCE_POS = TOTAL_X / 2  # in meters
 
-
+alpha = 1 / (2 * GAUSSIAN_TIME_WIDTH**2)
+FREQ_REF = np.sqrt(12 * alpha) * 2 * np.pi  # Hz (voir rapport pour la formule)
+print(f"FREQ_REF : {FREQ_REF:.2e} Hz")
 # Constants
 e0 = 8.8541878188e-12  # F/m
 u0 = 1.25663706127e-6  # H/m
 c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
+
+# derived parameters
+DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+# REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
+# the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
+M = round(TOTAL_X / DELTA_X)  # number of space samples
+
 # set the local relative permittivity array
 epsilon_r = np.ones((M))
-# epsilon_r[int(3 * M / 4) - 25 : int(3 * M / 4) + 25] = 4
+start_diel = round(DIEL_START / DELTA_X)
+end_diel = round(DIEL_END / DELTA_X)
+epsilon_r[start_diel:end_diel] = DEIL__REL_PERMITTIVITY
+print(f"start_diel : {start_diel}, end_diel : {end_diel}, M : {M}")
+# slowest speed in the medium
+c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
+
 
 # set the local conductivity array
 sigma = np.zeros((M))
-start_cond = 220
-end_cond = 320
-sigma[start_cond:end_cond] = 0.001
 
-# slowest speed in the medium
-c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
-# derived parameters
-DELTA_X = c_slowest / (FREQ_REF * 40)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
-# REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
-# the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
+start_cond = round(COND_START / DELTA_X)
+end_cond = round(COND_END / DELTA_X)
+sigma[start_cond:end_cond] = CONDUCTIVITY
 
-TOTAL_X = (M - 1) * DELTA_X  # in meters
 TOTAL_T = (Q - 1) * DELTA_T  # in seconds
 print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
@@ -62,16 +77,11 @@ J_source = np.zeros((Q, M))
 # ) / np.sqrt(2 * np.pi)
 
 # set a sinusoidal current at the middle of the grid
-fraction_on = 1
-J_source[0 : int(Q * fraction_on), round(M / 2)] = (
-    0.01
+
+J_source[0 : int(Q), round(SOURCE_POS / DELTA_X)] = (
+    -0.01
     / DELTA_X  # insures that the total current is constant
-    * np.sin(
-        2
-        * np.pi
-        * FREQ_REF
-        * np.linspace(0, TOTAL_T * fraction_on, int(Q * fraction_on))
-    )
+    * np.exp(-1 * (np.linspace(0, TOTAL_T, int(Q))- 3*GAUSSIAN_TIME_WIDTH) ** 2 * alpha)
 )
 
 
@@ -128,53 +138,76 @@ main()
 # %%
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
 fig, (ax1) = plt.subplots()
-ax1 : Axes = ax1
-ax1.set_xlim(0, TOTAL_X)
+ax1: Axes = ax1
 
-x = np.linspace(0, TOTAL_X, M)
+
+x = np.linspace(0, TOTAL_X, M) - TOTAL_X / 2
+ax1.set_xlim(np.min(x), np.max(x))
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("E (V/m)")
-ax1.set_title("1D FDTD simulation")
+ax1.set_title(
+    f"Impulsion gaussienne d'écart type {GAUSSIAN_TIME_WIDTH:.0e} s "
+)
 ax1.tick_params(axis="y", labelcolor="b")
 (lineE,) = plt.plot(x, E[0], label="0 s", color="b")
 (lineJ,) = plt.plot(x, J_source[0], label="0 s", color="g")
-plt.legend()
 plt.ylim(
     np.min(E, axis=None),
     np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
 )
 
-# show the relative permittivity on the plot
-# https://matplotlib.org/stable/gallery/subplots_axes_and_figures/two_scales.html
-ax2 = ax1.twinx()
-ax2.plot(x, sigma, "r")
-ax2.set_ylabel("conductivité", color="r")
-ax2.tick_params(axis="y", labelcolor="r")
+# ax1.axvspan(
+#     start_cond * DELTA_X - TOTAL_X / 2,
+#     end_cond * DELTA_X - TOTAL_X / 2,
+#     color="gray",
+#     alpha=0.5,
+# )
+# ax1.axvspan(
+#     DIEL_START - TOTAL_X / 2,
+#     DIEL_END - TOTAL_X / 2,
+#     color="blue",
+#     alpha=0.5,
+#     label="dielectric",
+# )
 
 frame_devider = 1
 
 
 def updatefig(i: int):
     lineE.set_ydata(E[i * frame_devider])
-    lineE.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
+    lineE.set_label(f"Ez at {i * frame_devider * DELTA_T:.2e} s")
     lineJ.set_ydata(J_source[i * frame_devider])
+    lineJ.set_label(f"J at {i * frame_devider * DELTA_T:.2e} s")
     plt.legend()
     return (lineE, lineJ)
 
 
-ani = animation.FuncAnimation(
-    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
-)
+# ani = animation.FuncAnimation(
+#     fig, updatefig, frames=range(3000, Q), repeat=True, interval=0
+# )
 
-steps_per_period = int(
-    1 / (FREQ_REF * DELTA_T)
-)
 
-print("steps_per_period : ", steps_per_period, "approx : ", 1 / (FREQ_REF * DELTA_T))
+# steps_per_half_period = int(1 / (2 * FREQ_REF * DELTA_T))
 
-ax1.plot(x, np.max(E[-steps_per_period:,:], axis = 0))
+# print(
+#     "steps_per_half_period : ",
+#     steps_per_half_period,
+#     "approx : ",
+#     1 / (2 * FREQ_REF * DELTA_T),
+# )
 
+# ax1.plot(
+#     x,
+#     np.max(np.abs(E[-steps_per_half_period:, :]), axis=0),
+#     label="Amplitude Ez",
+#     color="red",
+# )
+updatefig(4000)
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
+plt.legend(loc="lower left")
+plt.savefig(
+    "images/1D_gaussian_pulse.png", dpi=300, bbox_inches="tight"
+)
 
 plt.show()

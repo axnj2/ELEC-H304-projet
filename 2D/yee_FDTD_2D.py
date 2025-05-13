@@ -215,7 +215,9 @@ def step_yee(
 
 
 def get_material_mask(
-    local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    local_conductivity: xp.ndarray | None,
+    local_rel_permittivity: xp.ndarray | None,
+    perfect_conductor_mask: xp.ndarray | None,
 ) -> np.ndarray | None:
     # show the obstacles based on the local relative permittivity or conductivity
     # returns a mask indicating where the local relative permittivity is not 1 and or the local conductivity is not 0
@@ -235,6 +237,10 @@ def get_material_mask(
             mask = perfect_conductor_mask
         else:
             mask = np.logical_and(mask, perfect_conductor_mask)
+    
+    if using_cupy:
+        mask = xp.asnumpy(mask) # type: ignore
+
     return mask
 
 
@@ -704,8 +710,8 @@ def simulate_and_plot(
             mat_color = MATERIAL_COLOR_EDGE
         else:
             mat_color = MATERIAL_COLOR_FULL
-        material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
-        material_image[mask, :] = xp.asarray(mat_color)
+        material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
+        material_image[mask, :] = np.asarray(mat_color)
         ax.imshow(
             material_image,
         )
@@ -897,4 +903,3 @@ def simulate_up_to(
     return E, B_tilde_x, B_tilde_y
 
 
-def

@@ -47,7 +47,7 @@ mixed_lasagna_rel_permittivity = float(
     )
 )
 speed_of_light_in_lasagna = 1 / np.sqrt(mixed_lasagna_rel_permittivity * e0 * u0)
-print(f"speed_of_light_in_lasagna : {speed_of_light_in_lasagna}")
+print(f"speed_of_light_in_lasagna : {speed_of_light_in_lasagna:.2e} m/s")
 print(f"sample per wavelength : {speed_of_light_in_lasagna / (DELTA_X * FREQ_REF)}")
 
 # add the lasagna in the middle of the grid
@@ -155,6 +155,13 @@ ax2.plot(
     np.linspace(0, M * DELTA_X, M),
     np.abs(E[M // 2, :]),
 )
-ax2.vlines()
+
+ax2.axvspan(
+    microwave_side_length / 2 - LASAGNA_LENGTH / 2,
+    microwave_side_length / 2 + LASAGNA_LENGTH / 2,
+    color="red",
+    alpha=0.5,
+    label="lasagna",
+)
 
 plt.show()
