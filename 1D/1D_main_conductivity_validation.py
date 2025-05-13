@@ -11,13 +11,13 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-TOTAL_X = 25  # in meters
+TOTAL_X = 9  # in meters
 FREQ_REF = 1e8  # Hz
 Q = 10000  # number of time samples
-COND_START = 2  # in meters
-COND_END = 15   # in meters
+COND_START = 1  # in meters
+COND_END = 7  # in meters
 CONDUCTIVITY = 0.003  # in S/m
-SOURCE_POS = 20  # in meters
+SOURCE_POS = 8  # in meters
 
 
 # Constants
@@ -26,12 +26,9 @@ u0 = 1.25663706127e-6  # H/m
 c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 
-
-
-
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 600)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 600)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 M = round(TOTAL_X / DELTA_X)  # number of space samples
@@ -55,8 +52,7 @@ print("TOTAL_X : ", TOTAL_X, "TOTAL_T : ", TOTAL_T)
 print("DELTA_X : ", DELTA_X, "DELTA_T : ", DELTA_T)
 
 # check the stability condition
-print("feedback current max multiplier : ", (DELTA_T / e0) * np.max(sigma))
-assert (DELTA_T / e0) * np.max(sigma) < 1, "stability condition not met"
+print("OLD feedback current max multiplier : ", (DELTA_T / e0) * np.max(sigma))
 
 
 # %%
@@ -73,7 +69,7 @@ J_source = np.zeros((Q, M))
 
 # set a sinusoidal current at the middle of the grid
 fraction_on = 1
-J_source[0 : int(Q * fraction_on), round(SOURCE_POS/DELTA_X)] = (
+J_source[0 : int(Q * fraction_on), round(SOURCE_POS / DELTA_X)] = (
     0.01
     / DELTA_X  # insures that the total current is constant
     * np.sin(
@@ -102,13 +98,12 @@ def forward_E(E: np.ndarray, B_tilde: np.ndarray, J_source: np.ndarray, q: int):
     modifies E in place at step q
     q : int : has to be between 1 and Q-1
     """
-    E[q, 1:M] = (
+    E[q, 1:M] = (1 / (1 + sigma[1:M] * DELTA_T / (epsilon_r[1:M] * e0))) * (
         E[q - 1, 1:M]
         + (1 / (epsilon_r[1:M] * e0 * u0))
         * (DELTA_T / (c_vide * DELTA_X))
         * (B_tilde[q - 1, 1:M] - B_tilde[q - 1, 0 : M - 1])
-        - (DELTA_T / (epsilon_r[1:M] * e0))
-        * (J_source[q - 1, 1:M] + sigma[1:M] * E[q - 1, 1:M])
+        - (DELTA_T / (epsilon_r[1:M] * e0)) * (J_source[q - 1, 1:M])
     )
 
     # limit conditions :
@@ -139,14 +134,16 @@ main()
 # %%
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
 fig, (ax1) = plt.subplots()
-ax1 : Axes = ax1
+ax1: Axes = ax1
 
 
-x = np.linspace(0, TOTAL_X, M) - TOTAL_X/2
+x = np.linspace(0, TOTAL_X, M) - COND_END
 ax1.set_xlim(np.min(x), np.max(x))
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("E (V/m)")
-ax1.set_title(f"Electric field E at {FREQ_REF:.0e} Hz through a slightly conductive medium")
+ax1.set_title(
+    f"Amplitude du champ électrique en régime sinusoïdal permanent"
+)
 ax1.tick_params(axis="y", labelcolor="b")
 # (lineE,) = plt.plot(x, E[0], label="0 s", color="b")
 # (lineJ,) = plt.plot(x, J_source[0], label="0 s", color="g")
@@ -156,8 +153,8 @@ plt.ylim(
 )
 
 ax1.axvspan(
-    start_cond * DELTA_X - TOTAL_X / 2,
-    end_cond * DELTA_X - TOTAL_X / 2,
+    start_cond * DELTA_X - COND_END,
+    end_cond * DELTA_X - COND_END,
     color="gray",
     alpha=0.5,
 )
@@ -180,43 +177,47 @@ frame_devider = 1
 
 # updatefig(Q-1)
 
-steps_per_half_period = int(
-    1 / (2*FREQ_REF * DELTA_T)
-)
+steps_per_half_period = int(1 / (2 * FREQ_REF * DELTA_T))
 
 print(
     "steps_per_half_period : ",
     steps_per_half_period,
     "approx : ",
-    1 / (2*FREQ_REF * DELTA_T),
+    1 / (2 * FREQ_REF * DELTA_T),
 )
 
-amplitude = np.max(np.abs(E[-steps_per_half_period:,:]), axis = 0)
+amplitude = np.max(np.abs(E[-steps_per_half_period:, :]), axis=0)
 ax1.plot(x, amplitude, label="Amplitude Ez", color="red")
 
 # visualisation de la décroissance exponentielle théorique
 omega = 2 * np.pi * FREQ_REF
-alpha = omega * np.sqrt(e0 * u0 / 2) * np.sqrt(np.sqrt(1 + (np.max(sigma) / (omega * e0)**2)) - 1)
+alpha = (
+    omega
+    * np.sqrt(e0 * u0 / 2)
+    * np.sqrt(np.sqrt(1 + (np.max(sigma) / (omega * e0) ** 2)) - 1)
+)
 print(f"alpha : {alpha:.2e} m^-1")
-print(f"skin depth : {1/alpha:.2e} m")
+print(f"skin depth : {1 / alpha:.2e} m")
 
-A0 = amplitude[end_cond]
+A0 = amplitude[end_cond-1]
 # ax1.axhline(
 #     A0
 # )
 
 x_in_dielectric = x[start_cond:end_cond]
-theoretical_decay = A0* np.exp(-alpha*(-(x_in_dielectric - x_in_dielectric[-1])))
+theoretical_decay = A0 * np.exp(-alpha * (-(x_in_dielectric - x_in_dielectric[-1])))
 ax1.plot(
     x_in_dielectric,
     theoretical_decay,
     label="Theoretical decay",
     color="orange",
 )
-ax1.legend(loc="lower right")
+ax1.legend(loc="upper left")
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
 
-plt.savefig("images/1D_sine_source_local_conductivity.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    "images/1D_sine_source_local_conductivity.png", dpi=300, bbox_inches="tight"
+)
 
 plt.show()
