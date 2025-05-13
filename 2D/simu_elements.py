@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 import numpy as xp
 import numpy as np
 
+import math
+
 if TYPE_CHECKING:
     pass
 else:
@@ -113,7 +115,7 @@ def create_square_boundery(
     if thickness is None:
         discrete_thickness: int = 1
     else:
-        discrete_thickness: int = xp.ceil(thickness / delta_x)
+        discrete_thickness: int = math.ceil(thickness / delta_x)
         realised_thickness: float = discrete_thickness * delta_x
         error_on_thickness = abs(realised_thickness - thickness) / thickness
         if error_on_thickness > 0.2:
@@ -134,10 +136,10 @@ def create_square_boundery(
         )
 
     # create the boundery
-    x_start = xp.floor(upper_left_corner[0] / delta_x)
-    y_start = xp.floor(upper_left_corner[1] / delta_x)
-    x_end = xp.ceil((upper_left_corner[0] + x_size) / delta_x)
-    y_end = xp.ceil((upper_left_corner[1] + y_size) / delta_x)
+    x_start = math.floor(upper_left_corner[0] / delta_x)
+    y_start = math.floor(upper_left_corner[1] / delta_x)
+    x_end = math.ceil((upper_left_corner[0] + x_size) / delta_x)
+    y_end = math.ceil((upper_left_corner[1] + y_size) / delta_x)
     boundery[x_start:x_end, y_start:y_end] = value
 
     assert x_end - x_start - 2 * discrete_thickness > 0
@@ -203,10 +205,10 @@ def create_square(
             (upper_left_corner[0], upper_left_corner[1] - y_size)
         )
 
-    x_start = xp.floor(upper_left_corner[0] / delta_x)
-    y_start = xp.floor(upper_left_corner[1] / delta_x)
-    x_end = xp.ceil((upper_left_corner[0] + x_size) / delta_x)
-    y_end = xp.ceil((upper_left_corner[1] + y_size) / delta_x)
+    x_start = math.floor(upper_left_corner[0] / delta_x)
+    y_start = math.floor(upper_left_corner[1] / delta_x)
+    x_end = math.ceil((upper_left_corner[0] + x_size) / delta_x)
+    y_end = math.ceil((upper_left_corner[1] + y_size) / delta_x)
     square[y_start:y_end, x_start:x_end] = value
 
     return square

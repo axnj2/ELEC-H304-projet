@@ -2,6 +2,6 @@ matplotlib
 numpy
 tqdm
 pyqtgraph
-pyqt
+PyQt5
 ffmpeg
 xxhash
