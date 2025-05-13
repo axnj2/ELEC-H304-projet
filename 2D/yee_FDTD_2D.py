@@ -110,10 +110,10 @@ def forward_E(
     )
 
     # set the boundary conditions
-    E[-1, :] = xp.ones((M), dtype=xp.float32) * 1e-300
-    E[:, -1] = xp.ones((M), dtype=xp.float32) * 1e-300
-    E[0, :] = xp.ones((M), dtype=xp.float32) * 1e-300
-    E[:, 0] = xp.ones((M), dtype=xp.float32) * 1e-300
+    E[-1, :] = xp.ones((M), dtype=xp.float32) * 1e-30
+    E[:, -1] = xp.ones((M), dtype=xp.float32) * 1e-30
+    E[0, :] = xp.ones((M), dtype=xp.float32) * 1e-30
+    E[:, 0] = xp.ones((M), dtype=xp.float32) * 1e-30
 
 
 def forward_B_tilde(
@@ -450,10 +450,10 @@ def simulate_and_animate(
             frames = temp.__iter__()
 
     # allocate the arrays
-    E: xp.ndarray = xp.zeros((m_max, m_max), dtype=xp.float32)
-    B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
-    B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
-    J = xp.zeros((m_max, m_max), dtype=xp.float32)
+    E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32)*1e-30
+    B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+    B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+    J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
     q = 0
     init()
 
@@ -824,8 +824,9 @@ def simulate_up_to(
         # find the first file that has a Q smaller than the current Q
         loaded_Q = 0
         for f in files:
-            loaded_Q = int(f.split("_")[-1].split(".")[0])
-            if loaded_Q < Q:
+            file_Q = int(f.split("_")[-1].split(".")[0])
+            if file_Q < Q:
+                loaded_Q = file_Q
                 # load the file
                 loaded = np.load(os.path.join("temp", f))
                 E0 = loaded["E"]
@@ -836,10 +837,12 @@ def simulate_up_to(
 
 
         # initialize the arrays and move them to the GPU if using cupy
-        E = xp.zeros((m_max, m_max), dtype=xp.float32)
-        B_tilde_x = xp.zeros((m_max, m_max), dtype=xp.float32)
-        B_tilde_y = xp.zeros((m_max, m_max), dtype=xp.float32)
-        J = xp.zeros((m_max, m_max), dtype=xp.float32)
+        E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32)*1e-30
+        B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+        B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+        J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+        q = 0
+
         if E0 is not None:
             E = xp.array(E0.copy())
         if B_tilde_x_0 is not None:
