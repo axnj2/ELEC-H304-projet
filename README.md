@@ -18,7 +18,7 @@ https://www.nature.com/articles/s41467-020-19160-7
 ## conda setup : 
 ```shell
 conda install -c conda-forge cupy python-xxhash pyqt
-conda install --file requirements.txt   
+conda install matplotlib numpy tqdm pyqtgraph ffmpeg xxhash scipy   
 ```
 
 ## Gpu support
