@@ -895,3 +895,6 @@ def simulate_up_to(
         print(f"Saved arrays to {file_name} using {file_size_mb:.2f} MB")
 
     return E, B_tilde_x, B_tilde_y
+
+
+def

@@ -11,9 +11,9 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-M = 1000  # number of space samples
+M = 3000  # number of space samples
 FREQ_REF = 1e8  # Hz
-Q = 3000  # number of time samples
+Q = 10000  # number of time samples
 
 
 # Constants
@@ -27,15 +27,15 @@ epsilon_r = np.ones((M))
 
 # set the local conductivity array
 sigma = np.zeros((M))
-start_cond = 220
-end_cond = 320
-sigma[start_cond:end_cond] = 0.001
+start_cond = 100
+end_cond = 900
+sigma[start_cond:end_cond] = 0.003
 
 # slowest speed in the medium
 c_slowest = 1 / np.sqrt(np.max(epsilon_r) * e0 * u0)
 # derived parameters
-DELTA_X = c_slowest / (FREQ_REF * 40)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 40)  # in seconds
+DELTA_X = c_slowest / (FREQ_REF * 400)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 400)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 
@@ -130,52 +130,63 @@ main()
 # animate the results : https://stackoverflow.com/questions/67672601/how-to-use-matplotlibs-animate-function
 fig, (ax1) = plt.subplots()
 ax1 : Axes = ax1
-ax1.set_xlim(0, TOTAL_X)
 
-x = np.linspace(0, TOTAL_X, M)
+
+x = np.linspace(0, TOTAL_X, M) - TOTAL_X/2
+ax1.set_xlim(np.min(x), np.max(x))
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("E (V/m)")
-ax1.set_title("1D FDTD simulation")
+ax1.set_title(f"Electric field E at {FREQ_REF:.0e} Hz through a slightly conductive medium")
 ax1.tick_params(axis="y", labelcolor="b")
 (lineE,) = plt.plot(x, E[0], label="0 s", color="b")
 (lineJ,) = plt.plot(x, J_source[0], label="0 s", color="g")
-plt.legend()
 plt.ylim(
     np.min(E, axis=None),
     np.max(E, axis=None) + 0.1 * (np.max(E, axis=None) - np.min(E, axis=None)),
 )
 
-# show the relative permittivity on the plot
-# https://matplotlib.org/stable/gallery/subplots_axes_and_figures/two_scales.html
-ax2 = ax1.twinx()
-ax2.plot(x, sigma, "r")
-ax2.set_ylabel("conductivité", color="r")
-ax2.tick_params(axis="y", labelcolor="r")
+ax1.axvspan(
+    start_cond * DELTA_X - TOTAL_X / 2,
+    end_cond * DELTA_X - TOTAL_X / 2,
+    color="gray",
+    alpha=0.5,
+)
 
 frame_devider = 1
 
 
 def updatefig(i: int):
     lineE.set_ydata(E[i * frame_devider])
-    lineE.set_label(f"{i * frame_devider * DELTA_T:.2e} s")
+    lineE.set_label(f"Ez at {i * frame_devider * DELTA_T:.2e} s")
     lineJ.set_ydata(J_source[i * frame_devider])
+    lineJ.set_label(f"J at {i * frame_devider * DELTA_T:.2e} s")
     plt.legend()
     return (lineE, lineJ)
 
 
-ani = animation.FuncAnimation(
-    fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
+# ani = animation.FuncAnimation(
+#     fig, updatefig, frames=int(Q / frame_devider), repeat=True, interval=1
+# )
+
+updatefig(Q-1)
+
+steps_per_half_period = int(
+    1 / (2*FREQ_REF * DELTA_T)
 )
 
-steps_per_period = int(
-    1 / (FREQ_REF * DELTA_T)
+print(
+    "steps_per_half_period : ",
+    steps_per_half_period,
+    "approx : ",
+    1 / (2*FREQ_REF * DELTA_T),
 )
 
-print("steps_per_period : ", steps_per_period, "approx : ", 1 / (FREQ_REF * DELTA_T))
-
-ax1.plot(x, np.max(E[-steps_per_period:,:], axis = 0))
+ax1.plot(x, np.max(np.abs(E[-steps_per_half_period:,:]), axis = 0), label="Amplitude Ez", color="red")
+plt.legend(loc="lower right")
 
 
 # ani.save("1D_sine_source_local_conductivity.mp4", fps=60)
+
+plt.savefig("images/1D_sine_source_local_conductivity.png", dpi=300, bbox_inches="tight")
 
 plt.show()
