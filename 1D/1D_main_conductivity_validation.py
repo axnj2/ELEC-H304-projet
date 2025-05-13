@@ -11,13 +11,13 @@ import matplotlib.animation as animation
 
 # parameters
 # settings parameters
-TOTAL_X = 9  # in meters
+TOTAL_X = 10  # in meters
 FREQ_REF = 1e8  # Hz
 Q = 10000  # number of time samples
 COND_START = 1  # in meters
 COND_END = 7  # in meters
 CONDUCTIVITY = 0.003  # in S/m
-SOURCE_POS = 8  # in meters
+SOURCE_POS = 9  # in meters
 
 
 # Constants
@@ -27,8 +27,8 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 20)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 20)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 200)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 200)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 M = round(TOTAL_X / DELTA_X)  # number of space samples
