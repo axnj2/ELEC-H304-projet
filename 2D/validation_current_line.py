@@ -20,7 +20,7 @@ from matplotlib.axes import Axes
 
 # parameters
 # settings parameters
-M = 300  # number of space samples per dimension
+M = 600  # number of space samples per dimension
 FREQ_REF = 1e8  # Hz
 Q = int(M / 1.2)  # number of time steps
 TOTAL_CURRENT = 0.01  # A
@@ -72,7 +72,7 @@ im = plot_field(
     ax1,
     DELTA_T,
     DELTA_X,
-    E_amplitude,
+    E_amplitude[150:450, 150:450],
     norm_type="log",
     min_color_value=0.1,
 )
@@ -82,8 +82,8 @@ ax1.set_title(f"Electric field Ez amplitude at t = {DELTA_T * Q:.1e} s")
 E_max = np.max(np.abs(E_amplitude))
 
 ax2.plot(
-    np.abs(E_amplitude[M // 2, :]),
-    np.linspace(0, TOTAL_X, M) - TOTAL_X / 2,
+    np.abs(E_amplitude[M // 2, 150:450]),
+    np.linspace(0, TOTAL_X/2, round(M/2)) - TOTAL_X / 4,
     label=f"simulated electric amplitude",
 )
 ax2.set_ylabel("r (m)")
@@ -93,14 +93,14 @@ ax2.set_title(f"Electric field Ez at t = {DELTA_T * Q:.1e} s")
 # add the theoritical value
 Z_0 = np.sqrt(u0 / e0)
 beta = 2 * np.pi * FREQ_REF / C_VIDE
-x_axis = np.linspace(0, TOTAL_X / 2, M )
+x_axis = np.linspace(0, TOTAL_X / 4, M)
 
 
 E_theoritical = TOTAL_CURRENT * Z_0 * np.sqrt(beta / (8 * np.pi)) / (np.sqrt(x_axis))
 
 ax2.plot(
     E_theoritical,
-    np.linspace(0, TOTAL_X / 2, M ),
+    np.linspace(0, TOTAL_X / 4, M),
     label="Theoretical value",
     linestyle="--",
     color="red",
@@ -110,7 +110,7 @@ ax2.legend()
 # plot the other half
 ax2.plot(
     E_theoritical[::-1],
-    np.linspace(0, TOTAL_X / 2, M ) - TOTAL_X / 2 + DELTA_X,
+    np.linspace(0, TOTAL_X / 4, M) - TOTAL_X / 4 + DELTA_X,
     linestyle="--",
     color="red",
 )
@@ -121,10 +121,13 @@ non_zero = np.abs(E_amplitude[M // 2, :]) > 0.01 * E_max
 index = np.where(non_zero)[0]
 distance = (M // 2 - index[0]) * DELTA_X
 print("distance travalled: ", distance, "m")
-print("time travalled: ", DELTA_T * (Q), "s")
-print("speed: ", distance / (DELTA_T * (Q)), "m/s")
+print("time travalled: ", DELTA_T * (Q) + 1 / (2 * FREQ_REF), "s")
+print("speed: ", distance / (DELTA_T * (Q) + 1 / (2 * FREQ_REF)), "m/s")
 print("expected speed: ", C_VIDE, "m/s")
-print("relative error: ", (distance / (DELTA_T * (Q)) - C_VIDE) / C_VIDE)
+print(
+    "relative error: ",
+    (distance / (DELTA_T * (Q) + 1 / (2 * FREQ_REF)) - C_VIDE) / C_VIDE,
+)
 
 
 plt.savefig("images/current_line_validation.png", bbox_inches="tight")
