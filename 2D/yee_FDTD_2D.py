@@ -211,7 +211,7 @@ def step_yee(
     )
 
     if perferct_conductor_mask is not None:
-        E[perferct_conductor_mask] = 1e-300
+        E[perferct_conductor_mask] = 1e-30
 
 
 def get_material_mask(
@@ -276,6 +276,31 @@ def get_material_edges_from_mask(mask: np.ndarray | None) -> np.ndarray | None:
         return edges
     else:
         return None
+    
+def create_material_image(
+        local_conductivity: np.ndarray | None,
+        local_rel_permittivity: np.ndarray | None,
+        perfect_conductor_mask: np.ndarray | None,
+        m_max: int,
+        show_material: bool = True,
+        show_edges_of_materials: bool = True,
+) -> np.ndarray | None:
+    mask = get_material_mask(
+        local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    )
+
+    material_image = None
+    if mask is not None and show_material:
+        if show_edges_of_materials:
+            mask = get_material_edges_from_mask(mask)
+            mat_color = MATERIAL_COLOR_EDGE
+        else:
+            mat_color = MATERIAL_COLOR_FULL
+        material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
+        material_image[mask, :] = np.asarray(mat_color)
+    
+    return material_image
+    
 
 
 def simulate_and_animate(
@@ -649,23 +674,17 @@ def simulate_and_plot(
     if using_cupy and not TYPE_CHECKING:
         E_z = xp.asnumpy(E_z)
 
-    mask = get_material_mask(
-        local_conductivity, local_rel_permittivity, perfect_conductor_mask
+    material_image = create_material_image(
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        m_max,
+        show_material=show_material,
+        show_edges_of_materials=show_edges_of_materials,
     )
-
-    material_image = None
-    if mask is not None and show_material:
-        if show_edges_of_materials:
-            mask = get_material_edges_from_mask(mask)
-            mat_color = MATERIAL_COLOR_EDGE
-        else:
-            mat_color = MATERIAL_COLOR_FULL
-        material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
-        material_image[mask, :] = np.asarray(mat_color)
 
     im = plot_field(
         ax,
-        dt,
         dx,
         E_z,
         image_overlay=material_image,
@@ -909,7 +928,7 @@ def compute_electric_field_amplitude(
 
     num_steps = math.ceil(period/(2 * dt))
     E_amplitude = xp.zeros((m_max, m_max), dtype=np.float32)
-    for i in tqdm(range(num_steps), unit="step"):
+    for i in tqdm(range(num_steps), unit="step", desc="Computing electric field amplitude"):
         step_yee(
             E_z,
             B_tilde_x,
@@ -930,9 +949,75 @@ def compute_electric_field_amplitude(
     
     return E_amplitude
 
+def compute_electric_field_amplitude_and_plot(
+    ax: Axes,
+    dt: float,
+    dx: float,
+    Q: int,
+    m_max: int,
+    period: float,
+    current_func: Callable[[int, xp.ndarray], None] | None,
+    norm_type: str = "log",
+    local_conductivity: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    J0: np.ndarray | None = None,
+    E0: np.ndarray | None = None,
+    B_tilde_x_0: np.ndarray | None = None,
+    B_tilde_y_0: np.ndarray | None = None,
+    use_progress_bar: bool = True,
+    color_bar=True,
+    min_color_value: float | None = None,
+    show_edges_of_materials: bool = True,
+    show_material: bool = True,
+) -> Tuple[AxesImage, np.ndarray]:
+    """
+    Compute the electric field amplitude and plot the results on the given matplotlib.axes.Axes object.
+    """
+
+    E_amp = compute_electric_field_amplitude(
+        dt,
+        dx,
+        Q,
+        m_max,
+        period,
+        current_func,
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        J0,
+        E0,
+        B_tilde_x_0,
+        B_tilde_y_0,
+        use_progress_bar=use_progress_bar,
+    )
+
+    material_image = create_material_image(
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        m_max,
+        show_material=show_material,
+        show_edges_of_materials=show_edges_of_materials,
+    )
+
+    im = plot_field(
+        ax,
+        dx,
+        E_amp,
+        image_overlay=material_image,
+        min_color_value=min_color_value,
+        norm_type=norm_type,
+        color_bar=color_bar,
+    )
+
+    return im, E_amp
+
+
+
+
 def plot_field(
         ax: Axes,
-        dt: float,
         dx: float,
         field: np.ndarray,
         image_overlay: np.ndarray | None = None,

@@ -1,6 +1,6 @@
 import numpy as np
 
-from yee_FDTD_2D import simulate_and_animate, e0, u0, C_VIDE, simulate_and_plot
+from yee_FDTD_2D import simulate_and_animate, e0, u0, C_VIDE, simulate_and_plot, compute_electric_field_amplitude_and_plot
 from simu_elements import (
     sinusoïdal_point_source,
     create_square,
@@ -23,14 +23,14 @@ import xxhash
 # settings parameters
 microwave_side_length = 0.357  # in meters
 FREQ_REF = 1.8e9  # Hz
-Q = 10100  # number of time samples
+Q = 15000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 LASAGNA_WITH = 0.15  # in meters
 LASAGNA_LENGTH = 0.2  # in meters
 
 # derived parameters
 WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
-REFINEMENT_FACTOR = 200  # number of samples per wavelength (min 20)
+REFINEMENT_FACTOR = 400  # number of samples per wavelength (min 20)
 DELTA_X = WAVE_LENGTH / REFINEMENT_FACTOR  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
 M = int(microwave_side_length / DELTA_X)  # number of space samples per dimension
@@ -138,12 +138,13 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5))
 ax1: Axes = ax1
 ax2: Axes = ax2
 
-im, E = simulate_and_plot(
+im, E = compute_electric_field_amplitude_and_plot(
     ax1,
     DELTA_T,
     DELTA_X,
     Q,
     M,
+    1 / FREQ_REF,
     source,
     local_conductivity=lasagna_conductivity,
     local_rel_permittivity=lasagna_relative_permittivity,

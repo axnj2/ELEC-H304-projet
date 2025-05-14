@@ -46,7 +46,7 @@ simulate_and_animate(
     DELTA_T,
     DELTA_X,
     MIN_COLOR,
-    all_time_max / 10,
+    all_time_max,
     Q,
     M,
     current_func,
