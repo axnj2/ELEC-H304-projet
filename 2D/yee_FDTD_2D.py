@@ -746,7 +746,7 @@ def simulate_up_to(
             hasher.update(J.tobytes())
 
 
-    start_time = time.perf_counter()
+    #start_time = time.perf_counter()
     # add all the parameters to the hash
     hasher.update(str(dt).encode("utf-8"))
     hasher.update(str(dx).encode("utf-8"))
@@ -767,10 +767,10 @@ def simulate_up_to(
     if B_tilde_y_0 is not None:
         hasher.update(B_tilde_y_0.tobytes())
     parameters_hash = hasher.hexdigest()
-    end_time = time.perf_counter()
-    print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
+    #end_time = time.perf_counter()
+    #print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
     hasher.reset()
-    print(f"Hash of the parameters: {parameters_hash}")
+    #print(f"Hash of the parameters: {parameters_hash}")
     file_name = f"temp/simulate_{parameters_hash}_{Q}.npz"
 
     file_already_cached = False
@@ -840,7 +840,7 @@ def simulate_up_to(
         match use_progress_bar:
             case True:
                 steps = tqdm(range(loaded_Q, Q), unit="step")
-                steps.set_description("Generating image")
+                steps.set_description("Simulating")
             case False:
                 steps = range(loaded_Q, Q)
 
@@ -1022,6 +1022,7 @@ def plot_field(
         field: np.ndarray,
         image_overlay: np.ndarray | None = None,
         min_color_value: float | None = 0.1,
+        max_color_value: float | None = None,
         norm_type: str = "log",
         color_bar: bool = True,
 ) -> AxesImage :
@@ -1029,15 +1030,16 @@ def plot_field(
     # check the norm type
     match norm_type:
         case "log":
-            norm = LogNorm(vmin=min_color_value)
+            norm = LogNorm(vmin=min_color_value, vmax=max_color_value)
             show_abs = True
             color_map_name = "magma"
         case "abslin":
-            norm = Normalize(vmin=min_color_value)
+            norm = Normalize(vmin=min_color_value, vmax=max_color_value)
             show_abs = True
             color_map_name = "magma"
         case "lin":
-            max_color_value = np.max(np.abs(E))
+            if max_color_value is None:
+                max_color_value = np.max(np.abs(field), axis=None)
             norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
             show_abs = False
             color_map_name = "berlin"
@@ -1047,7 +1049,7 @@ def plot_field(
     # plot E as an image
     if show_abs:
         field_plot = np.abs(field)
-        color_bar_label = "abs(Ez) [V/m]"
+        color_bar_label = "|Ez| [V/m]"
     else:
         field_plot = field
         color_bar_label = "Ez [V/m]"
@@ -1061,15 +1063,25 @@ def plot_field(
     if color_bar:
         plt.colorbar(im, ax=ax, orientation="vertical", pad=0.01, label=color_bar_label)
 
-    m_max = field.shape[0]
+    y_max = field.shape[0]
+    x_max = field.shape[1]
+    x_number_of_ticks = 10
+    y_number_of_ticks = 10
+    if y_max > x_max:
+        x_number_of_ticks = int(x_number_of_ticks * (x_max / y_max))
+    elif y_max < x_max:
+        y_number_of_ticks = int(y_number_of_ticks * (y_max / x_max))
+
     ax.set_xticks(
-        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+        np.linspace(0, x_max, x_number_of_ticks),
+        np.round(np.linspace(0, (x_max - 1) * dx, x_number_of_ticks), 1),
     )
     ax.set_yticks(
-        np.linspace(0, m_max, 10), np.round(np.linspace(0, (m_max - 1) * dx, 10), 1)
+        np.linspace(0, y_max, y_number_of_ticks),
+        np.round(np.linspace(0, (y_max - 1) * dx, y_number_of_ticks), 1),
     )
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
     
 
     if image_overlay is not None:
@@ -1078,3 +1090,20 @@ def plot_field(
         )
 
     return im
+
+def field_to_power(
+        E_z_amplitude: np.ndarray,
+        R_a: float,
+        h_e: float,
+) -> np.ndarray:
+    """Computes the power received by an antenna with the given parameters in each point of the grid.
+
+    Args:
+        E_z_amplitude (np.ndarray): The amplitude of the electric field in steady state in [V/m]
+        R_a (float): Antenna resistance in [Ohm]
+        h_e (float): Antenna equivalent height in [m] along the z axis (assumed omnidirectional in the xy plane)
+
+    Returns:
+        np.ndarray: power array in [W]
+    """
+    return 1 / 8 * h_e**2 * E_z_amplitude**2 / R_a
