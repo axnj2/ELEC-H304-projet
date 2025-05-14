@@ -70,7 +70,6 @@ E_amplitude = compute_electric_field_amplitude(
 
 im = plot_field(
     ax1,
-    DELTA_T,
     DELTA_X,
     E_amplitude[150:450, 150:450],
     norm_type="log",
@@ -86,9 +85,9 @@ ax2.plot(
     np.linspace(0, TOTAL_X/2, round(M/2)) - TOTAL_X / 4,
     label=f"simulated electric amplitude",
 )
-ax2.set_ylabel("r (m)")
-ax2.set_xlabel("|Ez| (V/m)")
-ax2.set_title(f"Electric field Ez at t = {DELTA_T * Q:.1e} s")
+ax2.set_ylabel("r [m]")
+ax2.set_xlabel("|Ez| V/m")
+ax2.set_title(f"Electric field Ez amplitude at t = {DELTA_T * Q:.1e} s")
 
 # add the theoritical value
 Z_0 = np.sqrt(u0 / e0)
@@ -131,4 +130,4 @@ print(
 
 
 plt.savefig("images/current_line_validation.png", bbox_inches="tight")
-plt.show()
+#plt.show()
