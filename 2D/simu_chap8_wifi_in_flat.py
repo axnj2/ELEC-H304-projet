@@ -24,7 +24,7 @@ WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
 REFINEMENT_FACTOR = 20  # number of samples per wavelength (min 20)
 DELTA_X = WAVE_LENGTH / REFINEMENT_FACTOR  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
-M = int(TOTAL_X / DELTA_X)  # number of space samples per dimension
+M = round(TOTAL_X / DELTA_X)  # number of space samples per dimension
 print(f"M : {M}, total number of points : {M**2}")
 
 all_walls = xp.zeros((M, M), dtype=np.bool)

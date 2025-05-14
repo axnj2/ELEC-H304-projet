@@ -13,11 +13,10 @@ else:
 
         if cupy.cuda.is_available():
             xp = cupy
-            print("Using cupy")
-        else:
-            print("Using numpy")
+
     except ImportError:
-        print("Using numpy")
+        pass
+
 
 # Constants
 brick_wall_rel_permittivity = 4.0  # TODO find a realistic value
@@ -37,6 +36,7 @@ sauce_relative_real_permittivity = 76.4
 sauce_relative_complex_permittivity = 27.6
 
 # thermal_caracteristics
+
 
 def sinusoïdal_point_source(
     previousJ: xp.ndarray,
