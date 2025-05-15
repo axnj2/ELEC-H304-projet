@@ -16,7 +16,7 @@ FREQ_REF = 1e8  # Hz
 Q = 20000  # number of time samples
 COND_START = 1  # in meters
 COND_END = 7  # in meters
-CONDUCTIVITY = 0.003  # in S/m
+CONDUCTIVITY = 0.008  # in S/m
 REL_PERMITTIVITY = 1  # in F/m
 SOURCE_POS = 9  # in meters
 
@@ -28,8 +28,8 @@ c_vide = 1 / np.sqrt(e0 * u0)  # m/s
 
 
 # derived parameters
-DELTA_X = c_vide / (FREQ_REF * 1000)  # in meters
-DELTA_T = 1 / (2 * FREQ_REF * 1000)  # in seconds
+DELTA_X = c_vide / (FREQ_REF * 100)  # in meters
+DELTA_T = 1 / (2 * FREQ_REF * 100)  # in seconds
 # REMARK : when DELTA_T is too small(comparend to DELTA_x), the limit conditions seam to stop working correctly (a 10x difference causes problems)
 # the current limit condition assumes that C * DELTA_T/ DELTA_X = 2 (? I found a source that says 1 but I'm not sure : https://opencourses.emu.edu.tr/pluginfile.php/2641/mod_resource/content/1/ABC.pdf)
 M = round(TOTAL_X / DELTA_X)  # number of space samples
@@ -167,7 +167,7 @@ omega = 2 * np.pi * FREQ_REF
 alpha = (
     omega
     * np.sqrt(e0 * REL_PERMITTIVITY * u0 / 2)
-    * np.sqrt(np.sqrt(1 + (np.max(sigma) / (omega * e0 * REL_PERMITTIVITY) ** 2)) - 1)
+    * np.sqrt(np.sqrt(1 + (np.max(sigma) / (omega * e0 * REL_PERMITTIVITY)) ** 2) - 1)
 )
 print(f"alpha : {alpha:.2e} m^-1")
 print(f"skin depth : {1 / alpha:.2e} m")
@@ -183,9 +183,6 @@ ax1.plot(
     label="Theoretical decay",
     color="orange",
 )
-
-ax1.axhline((np.exp(-1)) * A0, color="orange", linestyle="--", label="décroissance 1/e")
-
 
 ax1.legend(loc="upper left")
 plt.savefig("images/1D_conductivity_validation.png", dpi=300, bbox_inches="tight")
