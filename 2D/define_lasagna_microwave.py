@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 # settings parameters
 microwave_side_length = 0.357  # in meters
 FREQ_REF = 1.8e9  # Hz
-Q = 15000  # number of time samples
+Q = 30000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 LASAGNA_WITH = 0.15  # in meters
 LASAGNA_LENGTH = 0.2  # in meters
