@@ -16,7 +16,7 @@ FREQ_REF = 1e8  # Hz
 Q = 20000  # number of time samples
 COND_START = 1  # in meters
 COND_END = 7  # in meters
-CONDUCTIVITY = 0.008  # in S/m
+CONDUCTIVITY = 0.003  # in S/m
 REL_PERMITTIVITY = 1  # in F/m
 SOURCE_POS = 9  # in meters
 
