@@ -97,16 +97,17 @@ def forward_E(
 
     # update the electric field
     E[1:M, 1:M] = (
+        1 / (1 + local_conductivity[1:M, 1:M] * dt / (epsilon_r[1:M, 1:M] * e0 * 2))
+    ) * (
         E[1:M, 1:M]
+        * (1 - local_conductivity[1:M, 1:M] * dt / (epsilon_r[1:M, 1:M] * e0 * 2))
         + dt
         / (C_VIDE * e0 * epsilon_r[1:M, 1:M] * u0 * dx)
         * (
             -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
             + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
         )
-        - dt
-        / (e0 * epsilon_r[1:M, 1:M])
-        * (J[1:M, 1:M] + local_conductivity[1:M, 1:M] * E[1:M, 1:M])
+        - dt / (e0 * epsilon_r[1:M, 1:M]) * J[1:M, 1:M]
     )
 
     # set the boundary conditions
@@ -237,9 +238,9 @@ def get_material_mask(
             mask = perfect_conductor_mask
         else:
             mask = np.logical_and(mask, perfect_conductor_mask)
-    
+
     if using_cupy:
-        mask = xp.asnumpy(mask) # type: ignore
+        mask = xp.asnumpy(mask)  # type: ignore
 
     return mask
 
@@ -276,14 +277,15 @@ def get_material_edges_from_mask(mask: np.ndarray | None) -> np.ndarray | None:
         return edges
     else:
         return None
-    
+
+
 def create_material_image(
-        local_conductivity: np.ndarray | None,
-        local_rel_permittivity: np.ndarray | None,
-        perfect_conductor_mask: np.ndarray | None,
-        m_max: int,
-        show_material: bool = True,
-        show_edges_of_materials: bool = True,
+    local_conductivity: np.ndarray | None,
+    local_rel_permittivity: np.ndarray | None,
+    perfect_conductor_mask: np.ndarray | None,
+    m_max: int,
+    show_material: bool = True,
+    show_edges_of_materials: bool = True,
 ) -> np.ndarray | None:
     mask = get_material_mask(
         local_conductivity, local_rel_permittivity, perfect_conductor_mask
@@ -298,9 +300,8 @@ def create_material_image(
             mat_color = MATERIAL_COLOR_FULL
         material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
         material_image[mask, :] = np.asarray(mat_color)
-    
+
     return material_image
-    
 
 
 def simulate_and_animate(
@@ -468,7 +469,7 @@ def simulate_and_animate(
             B_tilde_x_0=B_tilde_0,
             B_tilde_y_0=B_tilde_0,
         )
-    
+
     # created here to not interfere with the things printed by simulate_up_to
     match use_progress_bar:
         case True:
@@ -480,7 +481,7 @@ def simulate_and_animate(
             frames = temp.__iter__()
 
     # allocate the arrays
-    E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32)*1e-30
+    E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
     B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
     B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
     J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
@@ -745,13 +746,12 @@ def simulate_up_to(
             current_func(q, J)
             hasher.update(J.tobytes())
 
-
-    #start_time = time.perf_counter()
+    # start_time = time.perf_counter()
     # add all the parameters to the hash
     hasher.update(str(dt).encode("utf-8"))
     hasher.update(str(dx).encode("utf-8"))
     hasher.update(str(m_max).encode("utf-8"))
-    
+
     if local_conductivity is not None:
         hasher.update(local_conductivity.tobytes())
     if local_rel_permittivity is not None:
@@ -767,14 +767,13 @@ def simulate_up_to(
     if B_tilde_y_0 is not None:
         hasher.update(B_tilde_y_0.tobytes())
     parameters_hash = hasher.hexdigest()
-    #end_time = time.perf_counter()
-    #print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
+    # end_time = time.perf_counter()
+    # print(f"Hashing parameters took {end_time - start_time:.4f} seconds")
     hasher.reset()
-    #print(f"Hash of the parameters: {parameters_hash}")
+    # print(f"Hash of the parameters: {parameters_hash}")
     file_name = f"temp/simulate_{parameters_hash}_{Q}.npz"
 
     file_already_cached = False
-
 
     if file_name is not None and os.path.exists(file_name):
         loaded = np.load(file_name)
@@ -791,7 +790,9 @@ def simulate_up_to(
         files = os.listdir("temp")
         # filter the files to keep only the ones that match the pattern
         files = [
-            f for f in files if f.startswith(f"simulate_{parameters_hash}_") and f.endswith(".npz")
+            f
+            for f in files
+            if f.startswith(f"simulate_{parameters_hash}_") and f.endswith(".npz")
         ]
         # sort the files by Q
         files = sorted(
@@ -813,9 +814,8 @@ def simulate_up_to(
                 print(f"Loaded intermediary step's arrays from {f}")
                 break
 
-
         # initialize the arrays and move them to the GPU if using cupy
-        E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32)*1e-30
+        E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
         B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
         B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
         J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
@@ -827,8 +827,6 @@ def simulate_up_to(
             B_tilde_x = xp.array(B_tilde_x_0.copy())
         if B_tilde_y_0 is not None:
             B_tilde_y = xp.array(B_tilde_y_0.copy())
-
-
 
         if local_conductivity is not None:
             local_conductivity = xp.array(local_conductivity)
@@ -926,9 +924,11 @@ def compute_electric_field_amplitude(
 
     J_z = xp.zeros((m_max, m_max), dtype=np.float32)
 
-    num_steps = math.ceil(period/(2 * dt))
+    num_steps = math.ceil(period / (2 * dt))
     E_amplitude = xp.zeros((m_max, m_max), dtype=np.float32)
-    for i in tqdm(range(num_steps), unit="step", desc="Computing electric field amplitude"):
+    for i in tqdm(
+        range(num_steps), unit="step", desc="Computing electric field amplitude"
+    ):
         step_yee(
             E_z,
             B_tilde_x,
@@ -943,11 +943,12 @@ def compute_electric_field_amplitude(
             local_conductivity,
         )
         E_amplitude = xp.maximum(E_amplitude, xp.abs(E_z))
-    
+
     if using_cupy and not TYPE_CHECKING:
         E_amplitude = xp.asnumpy(E_amplitude)
-    
+
     return E_amplitude
+
 
 def compute_electric_field_amplitude_and_plot(
     ax: Axes,
@@ -1014,19 +1015,16 @@ def compute_electric_field_amplitude_and_plot(
     return im, E_amp
 
 
-
-
 def plot_field(
-        ax: Axes,
-        dx: float,
-        field: np.ndarray,
-        image_overlay: np.ndarray | None = None,
-        min_color_value: float | None = 0.1,
-        max_color_value: float | None = None,
-        norm_type: str = "log",
-        color_bar: bool = True,
-) -> AxesImage :
-    
+    ax: Axes,
+    dx: float,
+    field: np.ndarray,
+    image_overlay: np.ndarray | None = None,
+    min_color_value: float | None = 0.1,
+    max_color_value: float | None = None,
+    norm_type: str = "log",
+    color_bar: bool = True,
+) -> AxesImage:
     # check the norm type
     match norm_type:
         case "log":
@@ -1082,7 +1080,6 @@ def plot_field(
     )
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
-    
 
     if image_overlay is not None:
         ax.imshow(
@@ -1091,10 +1088,11 @@ def plot_field(
 
     return im
 
+
 def field_to_power(
-        E_z_amplitude: np.ndarray,
-        R_a: float,
-        h_e: float,
+    E_z_amplitude: np.ndarray,
+    R_a: float,
+    h_e: float,
 ) -> np.ndarray:
     """Computes the power received by an antenna with the given parameters in each point of the grid.
 

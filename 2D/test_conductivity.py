@@ -35,10 +35,10 @@ def current_func(q: int, current_J) -> None:
 
 
 # initialise the starting values
-E0 = np.ones((M, M)) * INITIAL_ZERO
-B_tilde_0 = np.ones((M, M)) * INITIAL_ZERO
-local_conductivity = np.zeros((M, M))
-local_conductivity[0 : M // 4, :] = 0.01
+E0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
+B_tilde_0 = np.ones((M, M), dtype=np.float32) * INITIAL_ZERO
+local_conductivity = np.zeros((M, M), dtype=np.float32)
+local_conductivity[0 : M // 4, :] = 0.001
 
 simulate_and_animate(
     E0,
@@ -46,7 +46,7 @@ simulate_and_animate(
     DELTA_T,
     DELTA_X,
     MIN_COLOR,
-    all_time_max / 10,
+    all_time_max / 1,
     Q,
     M,
     current_func,
