@@ -48,7 +48,6 @@ from scipy.ndimage import convolve
 
 import os
 import xxhash
-import time
 
 
 # Constants
@@ -1038,7 +1037,7 @@ def plot_field(
         case "lin":
             if max_color_value is None:
                 max_color_value = np.max(np.abs(field), axis=None)
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value) # type: ignore
             show_abs = False
             color_map_name = "berlin"
         case _:
