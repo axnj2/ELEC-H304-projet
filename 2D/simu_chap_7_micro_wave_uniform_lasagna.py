@@ -1,6 +1,12 @@
 import numpy as np
 
-from yee_FDTD_2D import simulate_and_animate, e0, u0, C_VIDE, simulate_and_plot, compute_electric_field_amplitude_and_plot
+from yee_FDTD_2D import (
+    e0,
+    u0,
+    C_VIDE,
+    compute_electric_field_amplitude_and_plot,
+    get_exponential_decay_alpha,
+)
 from simu_elements import (
     sinusoïdal_point_source,
     create_square,
@@ -17,8 +23,6 @@ from simu_elements import (
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-import xxhash
-
 # parameters
 # settings parameters
 microwave_side_length = 0.357  # in meters
@@ -27,6 +31,7 @@ Q = 15000  # number of time samples
 TOTAL_CURRENT = 0.01  # A
 LASAGNA_WITH = 0.15  # in meters
 LASAGNA_LENGTH = 0.2  # in meters
+SLICE_POSITION = microwave_side_length / 2 + LASAGNA_WITH / 4
 
 # derived parameters
 WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
@@ -46,14 +51,27 @@ mixed_lasagna_rel_permittivity = float(
         )
     )
 )
+mixed_lasagna_conductivity = float(
+    np.mean(
+        (
+            meat_relative_complex_permittivity,
+            cheese_relative_complex_permittivity,
+            pasta_relative_complex_permittivity,
+            sauce_relative_complex_permittivity,
+        )
+    )
+    * (2 * np.pi * FREQ_REF * e0)
+)
 speed_of_light_in_lasagna = 1 / np.sqrt(mixed_lasagna_rel_permittivity * e0 * u0)
 print(f"speed_of_light_in_lasagna : {speed_of_light_in_lasagna:.2e} m/s")
 print(f"sample per wavelength : {speed_of_light_in_lasagna / (DELTA_X * FREQ_REF)}")
+print(f"lasagna conductivity : {mixed_lasagna_conductivity:.2e} S/m")
+print(f"thermal inertia : {(1010.25*3670):.2e} J/Km^3")
 
 # add the lasagna in the middle of the grid
 # using the average of the relative permittivity of the ingredients
 # (imagine that the lasagna was mixed before being put in the microwave)
-lasagna_relative_permittivity = create_square(
+local_relative_permittivity = create_square(
     (
         microwave_side_length / 2 - LASAGNA_LENGTH / 2,
         microwave_side_length / 2 - LASAGNA_WITH / 2,
@@ -62,20 +80,14 @@ lasagna_relative_permittivity = create_square(
     LASAGNA_WITH,
     (M, M),
     DELTA_X,
-    value=float(
-        np.mean(
-            (
-                meat_relative_real_permittivity,
-                cheese_relative_real_permittivity,
-                pasta_relative_real_permittivity,
-                sauce_relative_real_permittivity,
-            )
-        )
-    ),
+    value=mixed_lasagna_rel_permittivity,
     default_value=1.0,
 )
 
-lasagna_conductivity = create_square(
+
+
+
+local_conductivity = create_square(
     (
         microwave_side_length / 2 - LASAGNA_LENGTH / 2,
         microwave_side_length / 2 - LASAGNA_WITH / 2,
@@ -84,17 +96,7 @@ lasagna_conductivity = create_square(
     LASAGNA_WITH,
     (M, M),
     DELTA_X,
-    value=float(
-        np.mean(
-            (
-                meat_relative_complex_permittivity,
-                cheese_relative_complex_permittivity,
-                pasta_relative_complex_permittivity,
-                sauce_relative_complex_permittivity,
-            )
-        )
-    )
-    * (2 * np.pi * FREQ_REF * e0),
+    value=mixed_lasagna_conductivity,
     default_value=0.0,
 )
 
@@ -134,11 +136,11 @@ J = np.zeros((M, M), dtype=np.float32)
 #     local_rel_permittivity=lasagna_relative_permittivity,
 # )
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 ax1: Axes = ax1
 ax2: Axes = ax2
 
-im, E = compute_electric_field_amplitude_and_plot(
+im, E_amplitude = compute_electric_field_amplitude_and_plot(
     ax1,
     DELTA_T,
     DELTA_X,
@@ -146,23 +148,64 @@ im, E = compute_electric_field_amplitude_and_plot(
     M,
     1 / FREQ_REF,
     source,
-    local_conductivity=lasagna_conductivity,
-    local_rel_permittivity=lasagna_relative_permittivity,
+    local_conductivity=local_conductivity,
+    local_rel_permittivity=local_relative_permittivity,
     min_color_value=1e-1,
     show_material=True,
 )
 
+
+SLICE_INDEX = round(SLICE_POSITION / DELTA_X)
 ax2.plot(
-    np.linspace(0, M * DELTA_X, M),
-    np.abs(E[M // 2, :]),
+    np.linspace(0, LASAGNA_LENGTH, round(LASAGNA_LENGTH / DELTA_X)) * 1000,
+    E_amplitude[
+        round((microwave_side_length / 2 - LASAGNA_LENGTH / 2) / DELTA_X) : round(
+            (microwave_side_length / 2 + LASAGNA_LENGTH / 2) / DELTA_X
+        ),
+        SLICE_INDEX,
+    ],
 )
 
-ax2.axvspan(
-    microwave_side_length / 2 - LASAGNA_LENGTH / 2,
-    microwave_side_length / 2 + LASAGNA_LENGTH / 2,
+ax2.set_xlabel("Distance [mm]")
+ax2.set_ylabel("Amplitude du champs électrique [V/m]")
+ax2.set_title("Amplitude du champs électrique dans la lasagne")
+ax1.set_title("Amplitude du champs électrique dans le micro-onde")
+
+alpha = get_exponential_decay_alpha(
+    mixed_lasagna_conductivity,
+    mixed_lasagna_rel_permittivity,
+    1,
+    2 * np.pi * FREQ_REF,
+)
+print(f"profondeur de peau : {1 / alpha:.2e} m")
+ax2.axvline(
+    1 / alpha * 1000,
     color="red",
-    alpha=0.5,
-    label="lasagna",
+    linestyle="--",
+    label="λ théorique",
+)
+ax2.axvline(
+    LASAGNA_LENGTH * 1000 - 1 / alpha * 1000,
+    color="red",
+    linestyle="--",
+)
+ax2.set_ylim(0, None)
+ax2.set_xlim(0, LASAGNA_LENGTH * 1000)
+
+initial_value_in_lasagna = np.max(
+    E_amplitude[
+        round((microwave_side_length / 2 - LASAGNA_LENGTH / 2) / DELTA_X) : round(
+            (microwave_side_length / 2 + LASAGNA_LENGTH / 2) / DELTA_X
+        ),
+        SLICE_INDEX,
+    ]
 )
 
-plt.show()
+ax2.axhline(
+    initial_value_in_lasagna / np.e, color="green", linestyle="--", label="A0/e"
+)
+
+ax2.legend()
+plt.tight_layout()
+plt.savefig("images/microwave_lasagna.png", bbox_inches="tight", dpi=300)
+#plt.show()

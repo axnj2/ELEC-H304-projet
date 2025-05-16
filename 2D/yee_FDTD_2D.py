@@ -1037,7 +1037,7 @@ def plot_field(
         case "lin":
             if max_color_value is None:
                 max_color_value = np.max(np.abs(field), axis=None)
-            norm = Normalize(vmin=-max_color_value, vmax=max_color_value) # type: ignore
+            norm = Normalize(vmin=-max_color_value, vmax=max_color_value)  # type: ignore
             show_abs = False
             color_map_name = "berlin"
         case _:
@@ -1104,3 +1104,31 @@ def field_to_power(
         np.ndarray: power array in [W]
     """
     return 1 / 8 * h_e**2 * E_z_amplitude**2 / R_a
+
+
+def get_exponential_decay_alpha(
+    sigma: float,
+    epsilon_r: float,
+    mu_r: float,
+    omega: float,
+) -> float:
+    """Computes the attenuation coefficient of the wave in a lossy medium.
+
+    Args:
+        sigma (float): Conductivity in [S/m]
+        epsilon_r (float): Relative permittivity
+        mu_r (float): Relative permeability
+        omega (float): Angular frequency in [rad/s]
+
+    Returns:
+        float: attenuation coefficient in [1/m]
+    """
+    alpha = (
+        omega
+        * np.sqrt(e0 * epsilon_r * u0 * mu_r / 2)
+        * np.sqrt(np.sqrt(1 + (np.max(sigma) / (omega * e0 * epsilon_r)) ** 2) - 1)
+    )
+    if using_cupy and not TYPE_CHECKING:
+        alpha = xp.asnumpy(alpha)
+
+    return alpha
