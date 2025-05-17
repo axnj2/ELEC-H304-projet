@@ -1023,6 +1023,7 @@ def plot_field(
     max_color_value: float | None = None,
     norm_type: str = "log",
     color_bar: bool = True,
+    color_bar_label: str | None = None,
 ) -> AxesImage:
     # check the norm type
     match norm_type:
@@ -1044,12 +1045,15 @@ def plot_field(
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
     # plot E as an image
+  
     if show_abs:
         field_plot = np.abs(field)
-        color_bar_label = "|Ez| [V/m]"
+        if color_bar_label is None:
+            color_bar_label = "|Ez| [V/m]"
     else:
         field_plot = field
-        color_bar_label = "Ez [V/m]"
+        if color_bar_label is None:
+            color_bar_label = "Ez [V/m]"
 
     im = ax.imshow(
         field_plot,

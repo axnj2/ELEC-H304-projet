@@ -147,10 +147,12 @@ im2 = plot_field(
         ),
     ],
     min_color_value=MIN_COLOR_VALUE,
+    color_bar_label="Puissance dissipée [W/m^3]",
 )
-ax3.set_title("Puissance dissipée dans la lasagne [W/m^3]")
+ax3.set_title("Puissance dissipée dans la lasagne")
 
 fig2.savefig(
     "images/microwave_lasagna_power_density.png", bbox_inches="tight", dpi=300
 )
-#plt.show()
+plt.show()
+
