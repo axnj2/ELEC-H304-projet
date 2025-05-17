@@ -140,15 +140,15 @@ def create_square_boundery(
     y_start = math.floor(upper_left_corner[1] / delta_x)
     x_end = math.ceil((upper_left_corner[0] + x_size) / delta_x)
     y_end = math.ceil((upper_left_corner[1] + y_size) / delta_x)
-    boundery[x_start:x_end, y_start:y_end] = value
+    boundery[y_start:y_end, x_start:x_end] = value
 
     assert x_end - x_start - 2 * discrete_thickness > 0
     assert y_end - y_start - 2 * discrete_thickness > 0
 
     # add the thickness
     boundery[
-        x_start + discrete_thickness : x_end - discrete_thickness,
         y_start + discrete_thickness : y_end - discrete_thickness,
+        x_start + discrete_thickness : x_end - discrete_thickness,
     ] = default_value
 
     return boundery

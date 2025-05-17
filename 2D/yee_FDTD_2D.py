@@ -1132,3 +1132,145 @@ def get_exponential_decay_alpha(
         alpha = xp.asnumpy(alpha)
 
     return alpha
+
+
+def compute_poynting_integral(
+    E_z: xp.ndarray,
+    B_tilde_x: xp.ndarray,
+    B_tilde_y: xp.ndarray,
+    dx: float,
+    upper_left_corner: Tuple[float, float],
+    lower_right_corner: Tuple[float, float],
+) -> float:
+    """
+    Computes the Poynting integral over the given square.
+    Args:
+        E_z (xp.ndarray): in [V/m] 2D array of the values of the electric field in the z direction on the main grid
+        B_tilde_x (xp.ndarray): in [T] 2D array of the values of the magnetic field in the x direction on a grid shifted by 1/2 in the y direction
+        B_tilde_y (xp.ndarray): in [T] 2D array of the values of the magnetic field in the y direction on a grid shifted by 1/2 in the x direction
+    """
+    # get the indices of the square
+    x_min = round(upper_left_corner[0] / dx)
+    x_max = round(lower_right_corner[0] / dx)
+    y_min = round(upper_left_corner[1] / dx)
+    y_max = round(lower_right_corner[1] / dx)
+
+    # axis :
+    #         ---> x
+    #       |
+    #       v y
+    # E_z[y, x]
+
+    # right side with 1n = 1x
+    side_pos_1x = (
+        -1
+        / (2 * u0 * C_VIDE)
+        * xp.sum(
+            E_z[y_min:y_max, x_max]
+            * (B_tilde_y[y_min:y_max, x_max - 1] + B_tilde_y[y_min:y_max, x_max])
+        )
+        * dx
+    )
+
+    side_neg_1x = (
+        1
+        / (2 * u0 * C_VIDE)
+        * xp.sum(
+            E_z[y_min:y_max, x_min]
+            * (B_tilde_y[y_min:y_max, x_min - 1] + B_tilde_y[y_min:y_max, x_min])
+        )
+        * dx
+    )
+
+    side_pos_1y = (
+        1
+        / (2 * u0 * C_VIDE)
+        * xp.sum(
+            E_z[y_max, x_min:x_max]
+            * (B_tilde_x[y_max - 1, x_min:x_max] + B_tilde_x[y_max, x_min:x_max])
+        )
+    )
+
+    side_neg_1y = (
+        -1
+        / (2 * u0 * C_VIDE)
+        * xp.sum(
+            E_z[y_min, x_min:x_max]
+            * (B_tilde_x[y_min - 1, x_min:x_max] + B_tilde_x[y_min, x_min:x_max])
+        )
+    )
+
+    # compute the Poynting integral
+    poynting_integral = side_pos_1x + side_neg_1x + side_pos_1y + side_neg_1y
+
+    return poynting_integral
+
+def compute_mean_poynting_integral(
+    dt: float,
+    dx: float,
+    Q: int,
+    m_max: int,
+    period: float,
+    current_func: Callable[[int, xp.ndarray], None] | None,
+    upper_left_corner: Tuple[float, float],
+    lower_right_corner: Tuple[float, float],
+    local_conductivity: np.ndarray | None = None,
+    local_rel_permittivity: np.ndarray | None = None,
+    perfect_conductor_mask: np.ndarray | None = None,
+    J0: np.ndarray | None = None,
+    E0: np.ndarray | None = None,
+    B_tilde_x_0: np.ndarray | None = None,
+    B_tilde_y_0: np.ndarray | None = None,
+    use_progress_bar: bool = True,
+) -> float:
+    """
+    Compute the mean Poynting integral over a period.
+    """
+    E_z, B_tilde_x, B_tilde_y = simulate_up_to(
+        dt,
+        dx,
+        Q,
+        m_max,
+        current_func,
+        local_conductivity,
+        local_rel_permittivity,
+        perfect_conductor_mask,
+        J0,
+        E0,
+        B_tilde_x_0,
+        B_tilde_y_0,
+        use_progress_bar=use_progress_bar,
+    )
+
+    J_z = xp.zeros((m_max, m_max), dtype=np.float32)
+
+    num_steps = math.ceil(period / dt)
+    mean_poynting_integral = 0
+    for i in tqdm(
+            range(num_steps), unit="step", desc="Computing mean Poynting integral"
+    ):
+        step_yee(
+            E_z,
+            B_tilde_x,
+            B_tilde_y,
+            J_z,
+            i + Q,
+            dt,
+            dx,
+            local_rel_permittivity,
+            current_func,
+            perfect_conductor_mask,
+            local_conductivity,
+        )
+        mean_poynting_integral += compute_poynting_integral(
+            E_z,
+            B_tilde_x,
+            B_tilde_y,
+            dx,
+            upper_left_corner,
+            lower_right_corner,
+        ) / num_steps
+
+    return float(mean_poynting_integral)
+        
+       
