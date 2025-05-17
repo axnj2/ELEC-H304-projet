@@ -158,7 +158,7 @@ if __name__ == "__main__":
     print(f"lasagna conductivity : {mixed_lasagna_conductivity:.2e} S/m")
     print(f"thermal inertia : {(1010.25 * 3670):.2e} J/Km^3")
     print(f"wave period : {1/FREQ_REF:.2e} s")
-    print(f"wave length : {WAVE_LENGTH:.2e} m")
+    print(f"wave length in vacum : {WAVE_LENGTH:.2e} m")
     # plot in black and white
     plt.figure(figsize=(8, 8))
     plt.title("Local relative permittivity of the lasagna")
