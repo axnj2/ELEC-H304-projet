@@ -1069,16 +1069,26 @@ def plot_field(
     elif y_max < x_max:
         y_number_of_ticks = int(y_number_of_ticks * (y_max / x_max))
 
+    unit = "m"
+    scale_factor = 1
+    if (x_max - 1) * dx / x_number_of_ticks < 1 or (
+        y_max - 1
+    ) * dx / y_number_of_ticks < 1:
+        scale_factor = 1000
+        unit = "mm"
+
     ax.set_xticks(
         np.linspace(0, x_max, x_number_of_ticks),
-        np.round(np.linspace(0, (x_max - 1) * dx, x_number_of_ticks), 1),
+        np.round(
+            np.linspace(0, (x_max - 1) * dx * scale_factor, x_number_of_ticks)
+        ).astype(int),
     )
     ax.set_yticks(
         np.linspace(0, y_max, y_number_of_ticks),
-        np.round(np.linspace(0, (y_max - 1) * dx, y_number_of_ticks), 1),
+        np.round(np.linspace(0, (y_max - 1) * dx * scale_factor, y_number_of_ticks)).astype(int),
     )
-    ax.set_xlabel("x [m]")
-    ax.set_ylabel("y [m]")
+    ax.set_xlabel(f"x [{unit}]")
+    ax.set_ylabel(f"y [{unit}]")
 
     if image_overlay is not None:
         ax.imshow(
@@ -1205,6 +1215,7 @@ def compute_poynting_integral(
 
     return poynting_integral
 
+
 def compute_mean_poynting_integral(
     dt: float,
     dx: float,
@@ -1247,7 +1258,7 @@ def compute_mean_poynting_integral(
     num_steps = math.ceil(period / dt)
     mean_poynting_integral = 0
     for i in tqdm(
-            range(num_steps), unit="step", desc="Computing mean Poynting integral"
+        range(num_steps), unit="step", desc="Computing mean Poynting integral"
     ):
         step_yee(
             E_z,
@@ -1262,15 +1273,16 @@ def compute_mean_poynting_integral(
             perfect_conductor_mask,
             local_conductivity,
         )
-        mean_poynting_integral += compute_poynting_integral(
-            E_z,
-            B_tilde_x,
-            B_tilde_y,
-            dx,
-            upper_left_corner,
-            lower_right_corner,
-        ) / num_steps
+        mean_poynting_integral += (
+            compute_poynting_integral(
+                E_z,
+                B_tilde_x,
+                B_tilde_y,
+                dx,
+                upper_left_corner,
+                lower_right_corner,
+            )
+            / num_steps
+        )
 
     return float(mean_poynting_integral)
-        
-       

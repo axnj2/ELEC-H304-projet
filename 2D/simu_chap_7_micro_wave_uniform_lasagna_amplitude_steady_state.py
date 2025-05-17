@@ -3,13 +3,16 @@ import numpy as np
 from yee_FDTD_2D import (
     compute_electric_field_amplitude_and_plot,
     get_exponential_decay_alpha,
+    plot_field,
+    using_cupy,
+    TYPE_CHECKING,
+    xp,
 )
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 from define_lasagna_microwave import initialize_mixed_lasagna
-
 
 
 # parameters
@@ -123,5 +126,31 @@ ax2.axhline(
 
 ax2.legend()
 plt.tight_layout()
-plt.savefig("images/microwave_lasagna_field_magnitude.png", bbox_inches="tight", dpi=300)
+plt.savefig(
+    "images/microwave_lasagna_field_magnitude.png", bbox_inches="tight", dpi=300
+)
 # plt.show()
+
+fig2, ax3 = plt.subplots(1, 1, figsize=(8, 6))
+if using_cupy and not TYPE_CHECKING:
+    local_conductivity = xp.asnumpy(local_conductivity)
+effective_power = local_conductivity * E_amplitude**2 / 2
+im2 = plot_field(
+    ax3,
+    DELTA_X,
+    effective_power[
+        round((microwave_side_length / 2 - LASAGNA_WITH / 2) / DELTA_X) : round(
+            (microwave_side_length / 2 + LASAGNA_WITH / 2) / DELTA_X
+        ),
+        round((microwave_side_length / 2 - LASAGNA_LENGTH / 2) / DELTA_X) : round(
+            (microwave_side_length / 2 + LASAGNA_LENGTH / 2) / DELTA_X
+        ),
+    ],
+    min_color_value=MIN_COLOR_VALUE,
+)
+ax3.set_title("Puissance dissipée dans la lasagne [W/m^3]")
+
+fig2.savefig(
+    "images/microwave_lasagna_power_density.png", bbox_inches="tight", dpi=300
+)
+#plt.show()
