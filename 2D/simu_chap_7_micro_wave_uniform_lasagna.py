@@ -29,7 +29,7 @@ from define_lasagna_microwave import initialize_mixed_lasagna
     mixed_lasagna_conductivity,
 ) = initialize_mixed_lasagna()
 SLICE_POSITION = microwave_side_length / 2 + LASAGNA_WITH / 4
-
+MIN_COLOR_VALUE = 1
 
 # initialize the arrays
 E0 = np.zeros((M, M), dtype=np.float32)
@@ -66,7 +66,7 @@ im, E_amplitude = compute_electric_field_amplitude_and_plot(
     source,
     local_conductivity=local_conductivity,
     local_rel_permittivity=local_relative_permittivity,
-    min_color_value=1e-1,
+    min_color_value=MIN_COLOR_VALUE,
     show_material=True,
 )
 
