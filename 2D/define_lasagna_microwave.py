@@ -137,13 +137,32 @@ def initialize_mixed_lasagna():
 
 
 if __name__ == "__main__":
+    (
+        DELTA_T,
+        DELTA_X,
+        Q,
+        M,
+        FREQ_REF,
+        local_relative_permittivity,
+        local_conductivity,
+        source,
+        LASAGNA_LENGTH,
+        LASAGNA_WITH,
+        microwave_side_length,
+        mixed_lasagna_rel_permittivity,
+        mixed_lasagna_conductivity,
+    ) = initialize_mixed_lasagna()
+    print(f"total current : {TOTAL_CURRENT:.2e} A")
     print(f"speed_of_light_in_lasagna : {speed_of_light_in_lasagna:.2e} m/s")
     print(f"sample per wavelength : {speed_of_light_in_lasagna / (DELTA_X * FREQ_REF)}")
     print(f"lasagna conductivity : {mixed_lasagna_conductivity:.2e} S/m")
     print(f"thermal inertia : {(1010.25 * 3670):.2e} J/Km^3")
+    print(f"wave period : {1/FREQ_REF:.2e} s")
+    print(f"wave length : {WAVE_LENGTH:.2e} m")
     # plot in black and white
     plt.figure(figsize=(8, 8))
     plt.title("Local relative permittivity of the lasagna")
+
     if using_cupy and not TYPE_CHECKING:
         local_relative_permittivity = xp.asnumpy(local_relative_permittivity)
     plt.imshow(
