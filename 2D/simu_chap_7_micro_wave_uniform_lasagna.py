@@ -123,5 +123,5 @@ ax2.axhline(
 
 ax2.legend()
 plt.tight_layout()
-plt.savefig("images/microwave_lasagna.png", bbox_inches="tight", dpi=300)
+plt.savefig("images/microwave_lasagna_field_magnitude.png", bbox_inches="tight", dpi=300)
 # plt.show()
