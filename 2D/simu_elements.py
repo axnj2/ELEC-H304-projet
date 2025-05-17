@@ -19,10 +19,12 @@ else:
 
 
 # Constants
-brick_wall_rel_permittivity = 4.0  # TODO find a realistic value
-brick_wall_conductivity = 0.01  # S/m TODO find a realistic value
-wooden_door_rel_permittivity = 2.0  # TODO find a realistic value
-wooden_door_conductivity = 0.001  # S/m TODO find a realistic value
+# source DOI : 10.2528/PIERB10091004
+brick_wall_loss_tangent = 0.03 
+brick_wall_rel_permittivity = 4.6 
+#brick_wall_conductivity = 0.01  # S/m TODO find a realistic value
+# wooden_door_rel_permittivity = 2.0  # TODO find a realistic value
+# wooden_door_conductivity = 0.001  # S/m TODO find a realistic value
 
 # from https://doi.org/10.1016/j.jfoodeng.2011.05.031
 # at 20°C and 1800MHz

@@ -236,7 +236,7 @@ def get_material_mask(
         if mask is None:
             mask = perfect_conductor_mask
         else:
-            mask = np.logical_and(mask, perfect_conductor_mask)
+            mask = np.logical_or(mask, perfect_conductor_mask)
 
     if using_cupy:
         mask = xp.asnumpy(mask)  # type: ignore
@@ -501,7 +501,7 @@ def simulate_and_animate(
         except StopIteration:
             if loop_animation:
                 # drop the progress bar even if it was used for animation repeat
-                frames = range(1, q_max // step_per_frame)
+                frames = range(show_from, q_max, step_per_frame)
                 frames = frames.__iter__()
                 init()
                 return
@@ -585,18 +585,15 @@ def simulate_and_animate(
     )
     color_bar.setImageItem(im, insert_in=plot)
 
-    mask = get_material_mask(
-        local_conductivity, local_rel_permittivity, perfect_conductor_mask
-    )
-
-    if mask is not None and show_material:
-        if show_edges_of_materials:
-            mask = get_material_edges_from_mask(mask)
-            mat_color = MATERIAL_COLOR_EDGE
-        else:
-            mat_color = MATERIAL_COLOR_FULL
-        material_image = xp.zeros((m_max, m_max, 4), dtype=xp.uint8)
-        material_image[mask, :] = xp.asarray(mat_color)
+    if show_material:
+        material_image = create_material_image(
+            local_conductivity,
+            local_rel_permittivity,
+            perfect_conductor_mask,
+            m_max,
+            show_material=show_material,
+            show_edges_of_materials=show_edges_of_materials,
+        )
         mat_im = pg.ImageItem(
             material_image,
             axisOrder="row-major",
@@ -604,6 +601,7 @@ def simulate_and_animate(
         mat_im.setRect(0, 0, 400, 400)
         plot.addItem(mat_im)
         mat_im.setZValue(10)  # put it on top of the other image
+        
 
     im.setColorMap(color_map)
     timer = QtCore.QTimer()  # type: ignore
@@ -967,7 +965,7 @@ def compute_electric_field_amplitude_and_plot(
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
     color_bar=True,
-    min_color_value: float | None = None,
+    min_color_value: float | None = 1e-1,
     show_edges_of_materials: bool = True,
     show_material: bool = True,
 ) -> Tuple[AxesImage, np.ndarray]:
@@ -1045,7 +1043,7 @@ def plot_field(
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
     # plot E as an image
-  
+
     if show_abs:
         field_plot = np.abs(field)
         if color_bar_label is None:
@@ -1089,7 +1087,9 @@ def plot_field(
     )
     ax.set_yticks(
         np.linspace(0, y_max, y_number_of_ticks),
-        np.round(np.linspace(0, (y_max - 1) * dx * scale_factor, y_number_of_ticks)).astype(int),
+        np.round(
+            np.linspace(0, (y_max - 1) * dx * scale_factor, y_number_of_ticks)
+        ).astype(int),
     )
     ax.set_xlabel(f"x [{unit}]")
     ax.set_ylabel(f"y [{unit}]")
