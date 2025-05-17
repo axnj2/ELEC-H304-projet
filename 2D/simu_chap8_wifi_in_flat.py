@@ -1,6 +1,6 @@
 import numpy as np
 
-from yee_FDTD_2D import simulate_and_animate, e0, C_VIDE, xp
+from yee_FDTD_2D import C_VIDE, xp, using_cupy, TYPE_CHECKING
 from simu_elements import (
     sinusoïdal_point_source,
     create_square_boundery,
@@ -11,7 +11,7 @@ from simu_elements import (
     wooden_door_rel_permittivity,
 )
 
-import pyqtgraph as pg
+import matplotlib.pyplot as plt
 
 # parameters
 TOTAL_X = 50  # in meters
@@ -29,80 +29,265 @@ print(f"M : {M}, total number of points : {M**2}")
 
 all_walls = xp.zeros((M, M), dtype=np.bool)
 
-center = np.array((TOTAL_X / 2, TOTAL_X / 2))
-print(f"center : {center}, type : {type(center)}")
-print(f"center + np.array((4, 0.5)) : {center + np.array((4, 0.5))}, type : {type(center + np.array((4, 0.5)))}")
+center = np.array((TOTAL_X / 2 - 5, TOTAL_X / 2 -2))
 # create the appartement layout
+# using xor to remove parts of the walls
 # my room = room1
-# room1_walls = (
-#     create_square_boundery(
-#         center, 4, 4, (M, M), DELTA_X, value=True, default_value=False, thickness=0.2
-#     )
-#     ^ create_square(
-#         center + np.array((1, 0)),
-#         2,
-#         0.2,
-#         (M, M),
-#         DELTA_X,
-#         value=True,
-#         default_value=False,
-#     )  # Window
-#     ^ create_square(
-#         center + np.array((4, 0.5)),
-#         -0.2,
-#         0.8,
-#         (M, M),
-#         DELTA_X,
-#         value=True,
-#         default_value=False,  # small_door
-#     )
-#     ^ create_square(
-#         center + np.array((1, 4)),
-#         2,
-#         -0.2,
-#         (M, M),
-#         DELTA_X,
-#         value=True,
-#         default_value=False,  # big door
-#     )
-# )
+room1_walls = (
+    create_square_boundery(
+        center, 4, 4, (M, M), DELTA_X, value=True, default_value=False, thickness=0.2
+    )
+    ^ create_square(
+        center + np.array((0, 1)),
+        0.2,
+        2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )  # Window
+    ^ create_square(
+        center + np.array((0.5, 4)),
+        0.8,
+        -0.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,  # small_door
+    )
+    ^ create_square(
+        center + np.array((4, 1)),
+        -0.2,
+        2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,  # big door
+    )
+)
 # living room = room2
 room2_walls = (
     create_square_boundery(
-        center + np.array((0.2, 0)),
-        12,
-        -5,
+        center + np.array((0, 0.2)),
+        10,
+        -4.4,
         (M, M),
         DELTA_X,
         value=True,
         default_value=False,
         thickness=0.2,
     )
-    # ^ create_square(  # Window front
-    #     center + np.array((-4.5, 0)),
-    #     0.2,
-    #     4,
-    #     (M, M),
-    #     DELTA_X,
-    #     value=True,
-    #     default_value=False,
-    # )
-    # ^ create_square(  # window back
-    #     center + np.array((-4.5, 12)),
-    #     -0.2,
-    #     4,
-    #     (M, M),
-    #     DELTA_X,
-    #     value=True,
-    #     default_value=False,
-    # )
+    ^ create_square(  # Window front
+        center + np.array((0, -0.7)),
+        0.2,
+        -3,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )  # front window
+    ^ create_square(  # Window front
+        center + np.array((10, -0.7)),
+        -0.2,
+        -3,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )  # front window
+    ^ create_square(  # middle door
+        center + np.array((4, 0.2)),
+        0.8,
+        -0.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+    ^ create_square(  # middle door
+        center + np.array((5.1, 0.2)),
+        0.8,
+        -0.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+    | (
+        create_square(  # middle wall
+            center + np.array((4.9, 0.2)),
+            0.2,
+            -4.4,
+            (M, M),
+            DELTA_X,
+            value=True,
+            default_value=False,
+        )
+        ^ create_square(  # middle hole
+            center + np.array((4.9, -0.5)),
+            0.2,
+            -3,
+            (M, M),
+            DELTA_X,
+            value=True,
+            default_value=False,
+        )
+    )
 )
-all_walls = room2_walls
+kitchen_walls = (
+    create_square_boundery(
+        center + np.array((6, 0)),
+        4,
+        4,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+        thickness=0.2,
+    )
+    ^ create_square(  # Window back
+        center + np.array((10, 1.2)),
+        -0.2,
+        2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+    ^ create_square(  # door
+        center + np.array((6, 1.2)),
+        0.2,
+        2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+)
+master_bedroom_walls = (
+    create_square_boundery(
+        center + np.array((0, 3.8)),
+        4,
+        4.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+        thickness=0.2,
+    )
+    ^ create_square(  # Window front
+        center + np.array((0, 4.8)),
+        0.2,
+        2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+    ^ create_square(  # door
+        center + np.array((3.8, 4)),
+        0.2,
+        0.8,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+)
 
-plot = pg.plot()
-plot.setFixedSize(800, 800)
-im = pg.ImageItem(
-    (all_walls).get(),
+bathroom_walls = (
+    create_square_boundery(
+        center + np.array((7.5, 4.8)),
+        2.5,
+        3.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+        thickness=0.2,
+    )
+    ^ create_square(  # lower dorr
+        center + np.array((7.8, 4.8)),
+        0.8,
+        0.2,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
+    ^ create_square(  # back window
+        center + np.array((10, 5.5)),
+        -0.2,
+        1,
+        (M, M),
+        DELTA_X,
+        value=True,
+        default_value=False,
+    )
 )
-plot.addItem(im)
-pg.exec()
+
+restroom_wall = create_square(
+    center + np.array((10, 4.8)),
+    -0.2,
+    -1,
+    (M, M),
+    DELTA_X,
+    value=True,
+    default_value=False,
+)  # middle wall
+
+stair_well_walls = create_square_boundery(
+    center + np.array((3.8, 4.8)),
+    3.9,
+    3.2,
+    (M, M),
+    DELTA_X,
+    value=True,
+    default_value=False,
+    thickness=0.2,
+)
+
+
+all_walls = (
+    room2_walls
+    | room1_walls
+    | kitchen_walls
+    | master_bedroom_walls
+    | bathroom_walls
+    | restroom_wall
+    | stair_well_walls
+)
+
+metal_door = create_square(
+    center + np.array((4, 4.8)),
+    1.8,
+    0.2,
+    (M, M),
+    DELTA_X,
+    value=True,
+    default_value=False,
+)
+everything = all_walls.astype(np.int16) + metal_door.astype(np.int16)
+
+local_relative_permittivity = all_walls.astype(np.float32) * brick_wall_rel_permittivity
+local_conductivity = all_walls.astype(np.float32) * brick_wall_conductivity
+perfect_conductor_mask = metal_door
+
+if __name__ == "__main__":
+    # plot the walls
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.set_title("walls")
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_xlim(0, TOTAL_X)
+    ax.set_ylim(0, TOTAL_X)
+    ax.set_aspect("equal")
+    if using_cupy and not TYPE_CHECKING:
+        everything = xp.asnumpy(everything)
+    im = plt.imshow(
+        everything,
+        origin="lower",
+        cmap="gray",
+        extent=(0, TOTAL_X, 0, TOTAL_X),
+    )
+    plt.show()
