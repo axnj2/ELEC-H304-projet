@@ -66,6 +66,7 @@ def forward_E(
     B_tilde_y: xp.ndarray,
     q: int,
     M: int,
+    N: int,
     dt: float,
     dx: float,
     J: xp.ndarray,
@@ -88,31 +89,31 @@ def forward_E(
 
     # set the epsilon_r to 1 if not provided
     if epsilon_r is None:
-        epsilon_r = xp.ones((M, M), dtype=xp.float32)
+        epsilon_r = xp.ones((M, N), dtype=xp.float32)
 
     # set the local conductivity to 0 if not provided
     if local_conductivity is None:
-        local_conductivity = xp.zeros((M, M), dtype=xp.float32)
+        local_conductivity = xp.zeros((M, N), dtype=xp.float32)
 
     # update the electric field
-    E[1:M, 1:M] = (
-        1 / (1 + local_conductivity[1:M, 1:M] * dt / (epsilon_r[1:M, 1:M] * e0 * 2))
+    E[1:M, 1:N] = (
+        1 / (1 + local_conductivity[1:M, 1:N] * dt / (epsilon_r[1:M, 1:N] * e0 * 2))
     ) * (
-        E[1:M, 1:M]
-        * (1 - local_conductivity[1:M, 1:M] * dt / (epsilon_r[1:M, 1:M] * e0 * 2))
+        E[1:M, 1:N]
+        * (1 - local_conductivity[1:M, 1:N] * dt / (epsilon_r[1:M, 1:N] * e0 * 2))
         + dt
-        / (C_VIDE * e0 * epsilon_r[1:M, 1:M] * u0 * dx)
+        / (C_VIDE * e0 * epsilon_r[1:M, 1:N] * u0 * dx)
         * (
-            -(B_tilde_x[1:M, 1:M] - B_tilde_x[0 : M - 1, 1:M])
-            + (B_tilde_y[1:M, 1:M] - B_tilde_y[1:M, 0 : M - 1])
+            -(B_tilde_x[1:M, 1:N] - B_tilde_x[0 : M - 1, 1:N])
+            + (B_tilde_y[1:M, 1:N] - B_tilde_y[1:M, 0 : N - 1])
         )
-        - dt / (e0 * epsilon_r[1:M, 1:M]) * J[1:M, 1:M]
+        - dt / (e0 * epsilon_r[1:M, 1:N]) * J[1:M, 1:N]
     )
 
     # set the boundary conditions
-    E[-1, :] = xp.ones((M), dtype=xp.float32) * 1e-30
+    E[-1, :] = xp.ones((N), dtype=xp.float32) * 1e-30
     E[:, -1] = xp.ones((M), dtype=xp.float32) * 1e-30
-    E[0, :] = xp.ones((M), dtype=xp.float32) * 1e-30
+    E[0, :] = xp.ones((N), dtype=xp.float32) * 1e-30
     E[:, 0] = xp.ones((M), dtype=xp.float32) * 1e-30
 
 
@@ -121,6 +122,7 @@ def forward_B_tilde(
     B_tilde_x: xp.ndarray,
     B_tilde_y: xp.ndarray,
     M: int,
+    N: int,
     dt: float,
     dx: float,
 ):
@@ -136,14 +138,14 @@ def forward_B_tilde(
     """
 
     # update the magnetic field
-    B_tilde_x[0 : M - 1, 0 : M - 1] = B_tilde_x[
-        0 : M - 1, 0 : M - 1
-    ] - C_VIDE * dt / dx * (E[1:M, 0 : M - 1] - E[0 : M - 1, 0 : M - 1])
+    B_tilde_x[0 : M - 1, 0 : N - 1] = B_tilde_x[
+        0 : M - 1, 0 : N - 1
+    ] - C_VIDE * dt / dx * (E[1:M, 0 : N - 1] - E[0 : M - 1, 0 : N - 1])
     #                          \y index  |
     #                                     \x index
-    B_tilde_y[0 : M - 1, 0 : M - 1] = B_tilde_y[
-        0 : M - 1, 0 : M - 1
-    ] + C_VIDE * dt / dx * (E[0 : M - 1, 1:M] - E[0 : M - 1, 0 : M - 1])
+    B_tilde_y[0 : M - 1, 0 : N - 1] = B_tilde_y[
+        0 : M - 1, 0 : N - 1
+    ] + C_VIDE * dt / dx * (E[0 : M - 1, 1:N] - E[0 : M - 1, 0 : N - 1])
 
 
 def step_yee(
@@ -180,13 +182,14 @@ def step_yee(
     """
     # infer the grid size
     M = E.shape[0]
+    N = E.shape[1]
 
     # get the current density
     if current_source_func is not None:
         current_source_func(q, J)
 
     # validate that the dimensions are coeherent
-    assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
+    #assert E.shape[0] == E.shape[1], "Error: E must be a square matrix"
     assert E.shape == B_tilde_x.shape, "Error: E and B_tilde_x must have the same shape"
     assert E.shape == B_tilde_y.shape, "Error: E and B_tilde_y must have the same shape"
     if perferct_conductor_mask is not None:
@@ -195,14 +198,23 @@ def step_yee(
         )
     if current_source_func is not None:
         assert E.shape == J.shape, "Error: E and J must have the same shape"
+    if local_conductivity is not None:
+        assert E.shape == local_conductivity.shape, (
+            "Error: E and local conductivity must have the same shape"
+        )
+    if epsilon_r is not None:
+        assert E.shape == epsilon_r.shape, (
+            "Error: E and local relative permittivity must have the same shape"
+        )
 
-    forward_B_tilde(E, B_tilde_x, B_tilde_y, M, dt, dx)
+    forward_B_tilde(E, B_tilde_x, B_tilde_y, M, N, dt, dx)
     forward_E(
         E,
         B_tilde_x,
         B_tilde_y,
         q,
         M,
+        N,
         dt,
         dx,
         J,
@@ -285,7 +297,11 @@ def create_material_image(
     m_max: int,
     show_material: bool = True,
     show_edges_of_materials: bool = True,
+    n_max: int | None = None,
 ) -> np.ndarray | None:
+    if n_max is None:
+        n_max = m_max
+
     mask = get_material_mask(
         local_conductivity, local_rel_permittivity, perfect_conductor_mask
     )
@@ -297,7 +313,7 @@ def create_material_image(
             mat_color = MATERIAL_COLOR_EDGE
         else:
             mat_color = MATERIAL_COLOR_FULL
-        material_image = np.zeros((m_max, m_max, 4), dtype=np.uint8)
+        material_image = np.zeros((m_max, n_max, 4), dtype=np.uint8)
         material_image[mask, :] = np.asarray(mat_color)
 
     return material_image
@@ -328,7 +344,8 @@ def simulate_and_animate(
     show_from: int = 0,
     theme: str = "w",
     show_edges_of_materials: bool = True,
-    show_material: bool = True,
+    show_material: bool = False,
+    n_max : int | None = None,
 ) -> None:
     """Run the simulation and show the animation.
     This function will create a figure and an animation of the simulation.
@@ -430,8 +447,11 @@ def simulate_and_animate(
         if loop_animation is None:
             loop_animation = True
 
+    if n_max is None:
+        n_max = m_max
+
     if J0 is None:
-        J0 = xp.zeros((m_max, m_max), dtype=xp.float32)
+        J0 = xp.zeros((m_max, n_max), dtype=xp.float32)
 
     # transform the matplotlib colormap to a pyqtgraph colormap
     base_color_map: pg.ColorMap = pg.colormap.get(color_map_name, source="matplotlib")  # type: ignore
@@ -480,10 +500,10 @@ def simulate_and_animate(
             frames = temp.__iter__()
 
     # allocate the arrays
-    E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-    B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-    B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-    J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+    E: xp.ndarray = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+    B_tilde_x = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+    B_tilde_y = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+    J = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
     q = 0
     init()
 
@@ -630,6 +650,7 @@ def simulate_and_plot(
     min_color_value: float | None = None,
     show_edges_of_materials: bool = True,
     show_material: bool = True,
+    n_max: int | None = None,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
     Simulate the Yee algorithm and plot the results on the given matplotlib.axes.Axes object.
@@ -666,6 +687,7 @@ def simulate_and_plot(
         B_tilde_x_0,
         B_tilde_y_0,
         use_progress_bar=use_progress_bar,
+        n_max=n_max,
     )
 
     if using_cupy and not TYPE_CHECKING:
@@ -678,6 +700,7 @@ def simulate_and_plot(
         m_max,
         show_material=show_material,
         show_edges_of_materials=show_edges_of_materials,
+        n_max=n_max,
     )
 
     im = plot_field(
@@ -708,6 +731,7 @@ def simulate_up_to(
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
     return_numpy: bool = False,
+    n_max: int | None = None,
 ) -> Tuple[xp.ndarray, xp.ndarray, xp.ndarray]:
     """
     Simulate the Yee algorithm and return the electric field E after Q time steps.
@@ -730,6 +754,8 @@ def simulate_up_to(
     Returns:
         Tuple[xp.ndarray, xp.ndarray, xp.ndarray]: Electric field E after Q time steps
     """
+    if n_max is None:
+        n_max = m_max
 
     # set the python hash function seed
     file_name = None
@@ -737,7 +763,7 @@ def simulate_up_to(
 
     if current_func is not None:
         # generate 5 steps of the current function to get a hash
-        J = xp.zeros((m_max, m_max), dtype=np.float32)
+        J = xp.zeros((m_max, n_max), dtype=np.float32)
         for q in range(5):
             current_func(q, J)
             hasher.update(J.tobytes())
@@ -811,10 +837,10 @@ def simulate_up_to(
                 break
 
         # initialize the arrays and move them to the GPU if using cupy
-        E: xp.ndarray = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-        B_tilde_x = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-        B_tilde_y = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
-        J = xp.ones((m_max, m_max), dtype=xp.float32) * 1e-30
+        E: xp.ndarray = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+        B_tilde_x = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+        B_tilde_y = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
+        J = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
         q = 0
 
         if E0 is not None:
@@ -896,12 +922,16 @@ def compute_electric_field_amplitude(
     B_tilde_x_0: np.ndarray | None = None,
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
+    n_max: int | None = None,
 ) -> np.ndarray:
     """Compute the electric field amplitude from the electric field in the z direction.
 
     Returns:
         np.ndarray: Electric field amplitude
     """
+    if n_max is None:
+        n_max = m_max
+
     E_z, B_tilde_x, B_tilde_y = simulate_up_to(
         dt,
         dx,
@@ -916,12 +946,13 @@ def compute_electric_field_amplitude(
         B_tilde_x_0,
         B_tilde_y_0,
         use_progress_bar=use_progress_bar,
+        n_max=n_max,
     )
 
-    J_z = xp.zeros((m_max, m_max), dtype=np.float32)
+    J_z = xp.zeros((m_max, n_max), dtype=np.float32)
 
     num_steps = math.ceil(period / (2 * dt))
-    E_amplitude = xp.zeros((m_max, m_max), dtype=np.float32)
+    E_amplitude = xp.zeros((m_max, n_max), dtype=np.float32)
     for i in tqdm(
         range(num_steps), unit="step", desc="Computing electric field amplitude"
     ):
@@ -967,6 +998,7 @@ def compute_electric_field_amplitude_and_plot(
     min_color_value: float | None = 1e-1,
     show_edges_of_materials: bool = True,
     show_material: bool = True,
+    n_max: int | None = None,
 ) -> Tuple[AxesImage, np.ndarray]:
     """
     Compute the electric field amplitude and plot the results on the given matplotlib.axes.Axes object.
@@ -987,6 +1019,7 @@ def compute_electric_field_amplitude_and_plot(
         B_tilde_x_0,
         B_tilde_y_0,
         use_progress_bar=use_progress_bar,
+        n_max=n_max,
     )
 
     material_image = create_material_image(
@@ -996,6 +1029,7 @@ def compute_electric_field_amplitude_and_plot(
         m_max,
         show_material=show_material,
         show_edges_of_materials=show_edges_of_materials,
+        n_max=n_max,
     )
 
     im = plot_field(
@@ -1254,10 +1288,14 @@ def compute_mean_poynting_integral(
     B_tilde_x_0: np.ndarray | None = None,
     B_tilde_y_0: np.ndarray | None = None,
     use_progress_bar: bool = True,
+    n_max: int | None = None,
 ) -> float:
     """
     Compute the mean Poynting integral over a period.
     """
+    if n_max is None:
+        n_max = m_max
+
     E_z, B_tilde_x, B_tilde_y = simulate_up_to(
         dt,
         dx,
@@ -1272,9 +1310,10 @@ def compute_mean_poynting_integral(
         B_tilde_x_0,
         B_tilde_y_0,
         use_progress_bar=use_progress_bar,
+        n_max=n_max,
     )
 
-    J_z = xp.zeros((m_max, m_max), dtype=np.float32)
+    J_z = xp.zeros((m_max, n_max), dtype=np.float32)
 
     num_steps = math.ceil(period / dt)
     mean_poynting_integral = 0
