@@ -601,7 +601,6 @@ def simulate_and_animate(
         mat_im.setRect(0, 0, 400, 400)
         plot.addItem(mat_im)
         mat_im.setZValue(10)  # put it on top of the other image
-        
 
     im.setColorMap(color_map)
     timer = QtCore.QTimer()  # type: ignore
@@ -1033,12 +1032,16 @@ def plot_field(
             norm = Normalize(vmin=min_color_value, vmax=max_color_value)
             show_abs = True
             color_map_name = "magma"
-        case "lin":
+        case "lin" | "simlin":
             if max_color_value is None:
                 max_color_value = np.max(np.abs(field), axis=None)
             norm = Normalize(vmin=-max_color_value, vmax=max_color_value)  # type: ignore
             show_abs = False
             color_map_name = "berlin"
+        case "asymlin":
+            norm = Normalize(vmin=min_color_value, vmax=max_color_value)  # type: ignore
+            show_abs = False
+            color_map_name = "magma"
         case _:
             raise ValueError(f"Unknown norm_type: {norm_type}")
 
@@ -1118,6 +1121,20 @@ def field_to_power(
         np.ndarray: power array in [W]
     """
     return 1 / 8 * h_e**2 * E_z_amplitude**2 / R_a
+
+
+def power_to_dBm(
+    power: np.ndarray,
+) -> np.ndarray:
+    """Computes the power in dBm from the power in W.
+
+    Args:
+        power (np.ndarray): Power in [W]
+
+    Returns:
+        np.ndarray: Power in [dBm]
+    """
+    return 10 * np.log10(power / 1e-3)
 
 
 def get_exponential_decay_alpha(

@@ -303,20 +303,21 @@ def source(q, J):
 
 
 if __name__ == "__main__":
-    # plot the walls
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.set_title("walls")
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
-    ax.set_xlim(0, TOTAL_X)
-    ax.set_ylim(0, TOTAL_X)
-    ax.set_aspect("equal")
-    if using_cupy and not TYPE_CHECKING:
-        everything = xp.asnumpy(everything)
-    im = plt.imshow(
-        everything,
-        origin="lower",
-        cmap="gray",
-        extent=(0, TOTAL_X, 0, TOTAL_X),
-    )
-    plt.show()
+    print(f"prop constant : {POWER_PROP_CONSTANT:.2e} W/mA^2")
+    # # plot the walls
+    # fig, ax = plt.subplots(figsize=(10, 10))
+    # ax.set_title("walls")
+    # ax.set_xlabel("x (m)")
+    # ax.set_ylabel("y (m)")
+    # ax.set_xlim(0, TOTAL_X)
+    # ax.set_ylim(0, TOTAL_X)
+    # ax.set_aspect("equal")
+    # if using_cupy and not TYPE_CHECKING:
+    #     everything = xp.asnumpy(everything)
+    # im = plt.imshow(
+    #     everything,
+    #     origin="lower",
+    #     cmap="gray",
+    #     extent=(0, TOTAL_X, 0, TOTAL_X),
+    # )
+    # plt.show()
