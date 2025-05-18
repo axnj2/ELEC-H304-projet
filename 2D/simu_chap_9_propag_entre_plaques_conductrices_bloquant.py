@@ -34,6 +34,7 @@ DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
 N = round(LENGTH / DELTA_X)  # number of space samples in the x direction
 M = round(WIDTH / DELTA_X)  # number of space samples in the y direction
 print(f"N : {N}, M : {M}, total number of points : {N * M}")
+print(f"wave length : {WAVE_LENGTH}, delta x : {DELTA_X}, delta t : {DELTA_T}")
 
 # Phase array parameters
 # simple source : https://www.youtube.com/watch?v=jSDLfcNhThw
