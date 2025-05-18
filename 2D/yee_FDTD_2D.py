@@ -450,6 +450,23 @@ def simulate_and_animate(
     if n_max is None:
         n_max = m_max
 
+    if show_from > 0:
+        E_ini, B_tilde_x_ini, B_tilde_y_ini = simulate_up_to(
+            dt,
+            dx,
+            show_from,
+            m_max,
+            current_func=current_func,
+            local_conductivity=local_conductivity,
+            local_rel_permittivity=local_rel_permittivity,
+            perfect_conductor_mask=perfect_conductor_mask,
+            J0=J0,
+            E0=E0,
+            B_tilde_x_0=B_tilde_0,
+            B_tilde_y_0=B_tilde_0,
+            n_max=n_max,
+        )
+
     if J0 is None:
         J0 = xp.zeros((m_max, n_max), dtype=xp.float32)
 
@@ -472,23 +489,7 @@ def simulate_and_animate(
             E[:, :] = xp.array(copy.deepcopy(E_ini))
             B_tilde_x[:, :] = xp.array(copy.deepcopy(B_tilde_x_ini))
             B_tilde_y[:, :] = xp.array(copy.deepcopy(B_tilde_y_ini))
-
-    if show_from > 0:
-        E_ini, B_tilde_x_ini, B_tilde_y_ini = simulate_up_to(
-            dt,
-            dx,
-            show_from,
-            m_max,
-            current_func=current_func,
-            local_conductivity=local_conductivity,
-            local_rel_permittivity=local_rel_permittivity,
-            perfect_conductor_mask=perfect_conductor_mask,
-            J0=J0,
-            E0=E0,
-            B_tilde_x_0=B_tilde_0,
-            B_tilde_y_0=B_tilde_0,
-            n_max=n_max,
-        )
+    
 
     # created here to not interfere with the things printed by simulate_up_to
     match use_progress_bar:
@@ -841,19 +842,19 @@ def simulate_up_to(
         J = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
         q = 0
 
-        if E0 is not None:
-            E = xp.array(E0.copy())
-        if B_tilde_x_0 is not None:
-            B_tilde_x = xp.array(B_tilde_x_0.copy())
-        if B_tilde_y_0 is not None:
-            B_tilde_y = xp.array(B_tilde_y_0.copy())
-
-        if local_conductivity is not None:
-            local_conductivity = xp.array(local_conductivity)
-        if local_rel_permittivity is not None:
-            local_rel_permittivity = xp.array(local_rel_permittivity)
-        if perfect_conductor_mask is not None:
-            perfect_conductor_mask = xp.array(perfect_conductor_mask)
+        # if E0 is not None:
+        #     E = xp.array(E0.copy())
+        # if B_tilde_x_0 is not None:
+        #     B_tilde_x = xp.array(B_tilde_x_0.copy())
+        # if B_tilde_y_0 is not None:
+        #     B_tilde_y = xp.array(B_tilde_y_0.copy())
+        if using_cupy:
+            if local_conductivity is not None:
+                local_conductivity = xp.array(local_conductivity)
+            if local_rel_permittivity is not None:
+                local_rel_permittivity = xp.array(local_rel_permittivity)
+            if perfect_conductor_mask is not None:
+                perfect_conductor_mask = xp.array(perfect_conductor_mask)
 
         match use_progress_bar:
             case True:
