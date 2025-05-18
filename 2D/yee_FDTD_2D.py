@@ -487,6 +487,7 @@ def simulate_and_animate(
             E0=E0,
             B_tilde_x_0=B_tilde_0,
             B_tilde_y_0=B_tilde_0,
+            n_max=n_max,
         )
 
     # created here to not interfere with the things printed by simulate_up_to
@@ -569,7 +570,6 @@ def simulate_and_animate(
     pyqtgraph.setConfigOptions(useCupy=using_cupy)
     widget = pg.GraphicsLayoutWidget()
     widget.setWindowTitle("FDTD 2D Yee algorithm")
-    widget.resize(1000, 900)  # FIXME can't get the ImageItem to resize properly
     widget.show()
 
     plot = widget.addPlot(
@@ -582,7 +582,6 @@ def simulate_and_animate(
         axisOrder="row-major",
     )
     im.setColorMap(color_map)
-    im.setRect(0, 0, 400, 400)  # FIXME can't get the ImageItem to resize properly
     plot.addItem(im)
     plot.showAxes(True)  # frame it with a full set of axes
     plot.invertY(True)
@@ -618,7 +617,6 @@ def simulate_and_animate(
             material_image,
             axisOrder="row-major",
         )
-        mat_im.setRect(0, 0, 400, 400)
         plot.addItem(mat_im)
         mat_im.setZValue(10)  # put it on top of the other image
 
