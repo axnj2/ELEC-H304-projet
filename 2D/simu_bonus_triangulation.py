@@ -24,10 +24,11 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.patches import Circle
 
+from scipy.optimize import minimize
 
 
 # parameters
-Q = 1500  # number of time samples
+Q = 3000  # number of time samples
 WIDTH = 25  # [m] 
 FREQ_REF = 1e9  # [Hz] reference frequency
 TOTAL_CURRENT = 0.01  # [A] total current
@@ -38,7 +39,7 @@ DETECTOR_3_POS = (WIDTH/2, WIDTH/2 + 5) # [m] position of the detector 3
 
 # derived parameters
 WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
-REFINEMENT_FACTOR = 20  # number of samples per wavelength (min 20)
+REFINEMENT_FACTOR = 40  # number of samples per wavelength (min 20)
 DELTA_X = WAVE_LENGTH / REFINEMENT_FACTOR  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
 M = round(WIDTH / DELTA_X)  # number of space samples in the y direction
@@ -82,11 +83,6 @@ plot_field(
 
 def distance_from_source(E_amplitude: float) -> float:
     return Z_0**2 * (beta/(8*np.pi)) * TOTAL_CURRENT**2 / (E_amplitude**2)
-
-distance_from_detector_1 = distance_from_source(E_amp[round(DETECTOR_1_POS[1]/DELTA_X), round(DETECTOR_1_POS[0]/DELTA_X)])
-distance_from_detector_2 = distance_from_source(E_amp[round(DETECTOR_2_POS[1]/DELTA_X), round(DETECTOR_2_POS[0]/DELTA_X)])
-print(f"distance from source to detector 1 : {distance_from_detector_1}")
-print(f"distance from source to detector 2 : {distance_from_detector_2}")
 
 def add_detector(ax: Axes, pos: tuple[float, float], color: str, E_amp) -> None:
     """Add a detector to the plot."""
@@ -148,8 +144,42 @@ def add_detector(ax: Axes, pos: tuple[float, float], color: str, E_amp) -> None:
 # ax.add_patch(dectector_1_pos)
 # ax.add_patch(dectector_2_pos)
 
-# add_detector(ax, DETECTOR_1_POS, "red", E_amp)
-# add_detector(ax, DETECTOR_2_POS, "blue", E_amp)
-# add_detector(ax, DETECTOR_3_POS, "green", E_amp)
+add_detector(ax, DETECTOR_1_POS, "red", E_amp)
+add_detector(ax, DETECTOR_2_POS, "blue", E_amp)
+add_detector(ax, DETECTOR_3_POS, "green", E_amp)
+
+
+detects_list = [
+    DETECTOR_1_POS,
+    DETECTOR_2_POS,
+    DETECTOR_3_POS,
+]
+detector_estimated_distance = [
+    distance_from_source(E_amp[round(DETECTOR_1_POS[1]/DELTA_X), round(DETECTOR_1_POS[0]/DELTA_X)]),
+    distance_from_source(E_amp[round(DETECTOR_2_POS[1]/DELTA_X), round(DETECTOR_2_POS[0]/DELTA_X)]),
+    distance_from_source(E_amp[round(DETECTOR_3_POS[1]/DELTA_X), round(DETECTOR_3_POS[0]/DELTA_X)]),
+]
+# find estimed position of the source
+def cost_fucntion(X:np.ndarray) -> float:
+    """Cost function to minimize."""
+    # X[0] = x
+    # X[1] = y
+    total_cost = 0
+    for detector_pos, distance in zip(detects_list, detector_estimated_distance):
+        # distance from the source to the detector
+        distance_from_source = np.sqrt((X[0] - detector_pos[0])**2 + (X[1] - detector_pos[1])**2)
+        total_cost += (distance_from_source - distance)**2
+    return total_cost
+
+
+x_0, y_0 = WIDTH / 2, WIDTH / 2
+
+x_source_est, y_source_est = minimize(
+    cost_fucntion,
+    x0=np.array([x_0, y_0]),
+    ).x
+print(f"estimated source position : {x_source_est}, {y_source_est}")
+print(f"actual source position : {SOURCE_POS[0]}, {SOURCE_POS[1]}")
+print(f"estimation error : {np.sqrt((x_source_est - SOURCE_POS[0])**2 + (y_source_est - SOURCE_POS[1])**2)}")
 
 plt.show()
