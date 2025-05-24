@@ -842,12 +842,12 @@ def simulate_up_to(
         J = xp.ones((m_max, n_max), dtype=xp.float32) * 1e-30
         q = 0
 
-        # if E0 is not None:
-        #     E = xp.array(E0.copy())
-        # if B_tilde_x_0 is not None:
-        #     B_tilde_x = xp.array(B_tilde_x_0.copy())
-        # if B_tilde_y_0 is not None:
-        #     B_tilde_y = xp.array(B_tilde_y_0.copy())
+        if E0 is not None:
+            E = xp.array(E0.copy())
+        if B_tilde_x_0 is not None:
+            B_tilde_x = xp.array(B_tilde_x_0.copy())
+        if B_tilde_y_0 is not None:
+            B_tilde_y = xp.array(B_tilde_y_0.copy())
         if using_cupy:
             if local_conductivity is not None:
                 local_conductivity = xp.array(local_conductivity)
