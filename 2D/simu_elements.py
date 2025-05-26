@@ -73,6 +73,25 @@ def sinusoïdal_point_source(
         * xp.sin(2 * np.pi * frequency * q * dt + phase, dtype=xp.float32)
     )
 
+def gaussian_point_source(
+        previousJ: xp.ndarray,
+        q: int,
+        M: int,
+        pos_x: int,
+        pos_y: int,
+        total_current: float,
+        frequency: float,
+        dt: float,
+        dx: float,
+        sigma: float = 1.0,
+) -> None:
+    alpha = 1 / (2 * sigma**2)
+    previousJ[pos_y, pos_x] = (
+        -total_current
+        / (dx * dx)  # insures that the total current is constant
+        * np.exp(-1 * (q * dt - 6 * sigma) ** 2 * alpha)
+    )
+
 
 def create_square_boundery(
     upper_left_corner: np.ndarray | tuple[float, float],
