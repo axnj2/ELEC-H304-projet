@@ -39,7 +39,7 @@ DETECTOR_3_POS = (WIDTH/2, WIDTH/2 + 5) # [m] position of the detector 3
 
 # derived parameters
 WAVE_LENGTH = C_VIDE / FREQ_REF  # in meters
-REFINEMENT_FACTOR = 40  # number of samples per wavelength (min 20)
+REFINEMENT_FACTOR = 20  # number of samples per wavelength (min 20)
 DELTA_X = WAVE_LENGTH / REFINEMENT_FACTOR  # in meters
 DELTA_T = 1 / (2 * FREQ_REF * REFINEMENT_FACTOR)  # in seconds
 M = round(WIDTH / DELTA_X)  # number of space samples in the y direction
@@ -107,42 +107,6 @@ def add_detector(ax: Axes, pos: tuple[float, float], color: str, E_amp) -> None:
         linewidth=2.5,
     )
     ax.add_patch(circle)
-
-# circle_1 = Circle(
-#     (round(DETECTOR_1_POS[0] / DELTA_X), round(DETECTOR_1_POS[1] / DELTA_X)),
-#     distance_from_detector_1/DELTA_X,
-#     color="red",
-#     fill=False,
-#     linestyle="--",
-#     linewidth=3,
-# )
-# circle_2 = Circle(
-#     (round(DETECTOR_2_POS[0] / DELTA_X), round(DETECTOR_2_POS[1] / DELTA_X)),
-#     distance_from_detector_2/DELTA_X,
-#     color="blue",
-#     fill=False,
-#     linestyle="--",
-#     linewidth=3,
-# )
-
-# ax.add_patch(circle_1)
-# ax.add_patch(circle_2)
-
-# # Show the position of the detectors
-# dectector_1_pos = Circle(
-#     (round(DETECTOR_1_POS[0] / DELTA_X), round(DETECTOR_1_POS[1] / DELTA_X)),
-#     M/100,
-#     color="red",
-#     fill=True,
-# )
-# dectector_2_pos = Circle(
-#     (round(DETECTOR_2_POS[0] / DELTA_X), round(DETECTOR_2_POS[1] / DELTA_X)),
-#     M/100,
-#     color="blue",
-#     fill=True,
-# )
-# ax.add_patch(dectector_1_pos)
-# ax.add_patch(dectector_2_pos)
 
 add_detector(ax, DETECTOR_1_POS, "red", E_amp)
 add_detector(ax, DETECTOR_2_POS, "blue", E_amp)
