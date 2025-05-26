@@ -30,11 +30,11 @@ from scipy.optimize import minimize
 
 
 # parameters
-Q = 1600  # number of time samples
-WIDTH = 13  # [m]
+Q = 1700  # number of time samples
+WIDTH = 25  # [m]
 FREQ_REF = 1e9  # [Hz] reference frequency
 TOTAL_CURRENT = 0.01  # [A] total current
-SOURCE_POS = (WIDTH / 2, WIDTH / 2 - 2)  # [m] position of the source
+SOURCE_POS = (WIDTH / 2, WIDTH / 2 )  # [m] position of the source
 DETECTOR_1_POS = (WIDTH / 2 - 5, WIDTH / 2)  # [m] position of the detector 1
 # DETECTOR_2_POS = (WIDTH / 2, WIDTH / 2 - 5) # [m] position of the detector 2
 # DETECTOR_3_POS = (WIDTH/2, WIDTH/2 + 5) # [m] position of the detector 3
@@ -123,8 +123,11 @@ def distance_from_source(E_amplitude: float) -> float:
 
 def distance_from_source_through_wall(E_amplitude: float) -> float:
     """Calculate the distance from the source to the detector through the wall."""
-
-    pass
+    transmission_coeff = get_transmission_coeff(Z_0, Z_2, 0, 0)
+    reflection_coeff = get_reflexion_coeff(Z_0, Z_2, 0, 0)
+    distance = transmission_coeff**2 * (1- reflection_coeff**2) * Z_0**2 * (beta / (8 * np.pi)) * TOTAL_CURRENT**2 / (E_amplitude**2)
+    return distance
+    
 
 
 def add_detector(
@@ -158,7 +161,7 @@ def add_detector(
     ax.add_patch(circle)
 
 
-add_detector(ax, DETECTOR_1_POS, "red", E_amp)
+add_detector(ax, DETECTOR_1_POS, "red", E_amp, distance_func=distance_from_source_through_wall)
 # add_detector(ax, DETECTOR_2_POS, "blue", E_amp)
 # add_detector(ax, DETECTOR_3_POS, "green", E_amp)
 

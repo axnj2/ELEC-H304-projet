@@ -28,7 +28,7 @@ from scipy.optimize import minimize
 
 
 # parameters
-Q = 3000  # number of time samples
+Q = 1500  # number of time samples
 WIDTH = 25  # [m] 
 FREQ_REF = 1e9  # [Hz] reference frequency
 TOTAL_CURRENT = 0.01  # [A] total current
@@ -73,7 +73,7 @@ E_amp = compute_electric_field_amplitude(
     source_func,
 )
 
-figure, ax = plt.subplots(1, 1, figsize=(6, 6))
+figure, ax = plt.subplots(1, 1, figsize=(8, 8))
 
 plot_field(
     ax,
@@ -145,5 +145,6 @@ x_source_est, y_source_est = minimize(
 print(f"estimated source position : {x_source_est}, {y_source_est}")
 print(f"actual source position : {SOURCE_POS[0]}, {SOURCE_POS[1]}")
 print(f"estimation error : {np.sqrt((x_source_est - SOURCE_POS[0])**2 + (y_source_est - SOURCE_POS[1])**2)}")
-
+plt.title("Amplitude du champ électrique et position des détecteurs")
+plt.savefig("images/simu_bonus_trilateration_vide.png", dpi=300, bbox_inches="tight")
 plt.show()
