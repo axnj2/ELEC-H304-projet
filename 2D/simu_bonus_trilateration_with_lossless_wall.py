@@ -223,6 +223,6 @@ print(f"real electric field amplitude at detector 1 : {E_amp[round(DETECTOR_1_PO
 # print(f"actual source position : {SOURCE_POS[0]}, {SOURCE_POS[1]}")
 # print(f"estimation error : {np.sqrt((x_source_est - SOURCE_POS[0])**2 + (y_source_est - SOURCE_POS[1])**2)}")
 plt.legend()
-plt.title("Trilateration with lossless wall")
+plt.title("Distance au travers d'un mur sans pertes")
 plt.savefig("images/simu_bonus_trilateration_with_lossless_wall_all_reflexion_failed.png", dpi=300, bbox_inches="tight")
 plt.show()
